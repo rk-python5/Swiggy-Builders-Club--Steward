@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+*.log
+
+# Confidential — contains PAN, DOB, home address, and is confidential per its own Clause 12.5.
+# Keep this out of the (public) repo.
+Integration Agreement*.pdf
