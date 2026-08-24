@@ -8,12 +8,16 @@
     "db:migrate": "node-pg-migrate up -j sql -m src/db/migrations",
     "auth": "tsx src/scripts/auth.ts",
     "crawl:once": "tsx src/scripts/crawl-once.ts",
+    "scheduler": "tsx src/scripts/start-scheduler.ts",
+    "daemon:standing-plans": "tsx src/scripts/standing-plans-once.ts",
+    "add-commitment": "tsx src/scripts/add-commitment.ts",
     "test": "node --import tsx --test test/**/*.test.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
     "node-cron": "^3.0.3",
-    "pg": "^8.13.1"
+    "pg": "^8.13.1",
+    "pg-boss": "^12.28.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
