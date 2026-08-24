@@ -10,6 +10,12 @@ calling it done. Sequencing follows the review doc's own logic: cheapest/safest 
 spent), hardest abstraction test second (deliberately, to find a wrong interface with one daemon built instead
 of two), then the odd one out, then the surface, then production.
 
+**Design vs. build, for the frontend specifically:** UI screens and system-design work are being done in Claude
+Design in parallel with the backend phases below — that work isn't gated on anything. What *is* deliberately
+sequenced last (Phase 4) is writing the frontend's actual code, because it needs real accumulated daemon data
+to be worth looking at. Without Phase 4 this project stops at a backend + a Telegram bot — a working model, not
+a product — so it's a real phase, not an afterthought tacked on at the end.
+
 ---
 
 ## Phase 0 — Ground ✅ Done
@@ -96,18 +102,37 @@ DB state; the interactive router picks the correct vertical on a handful of hand
 
 ---
 
-## Phase 4 — Surface and Demo
+## Phase 4 — Frontend: Surface and Demo
 
-**Goal:** the thin layer, built last, on purpose — after there's real accumulated daemon activity to show, not
-a mockup of activity that doesn't exist yet.
+Without this phase the project stops at a backend + a Telegram bot — a working model, not a product. It's a
+real deliverable, not an afterthought; it's just sequenced last because the *build* needs real accumulated
+daemon activity to be worth looking at. **Design is not gated on that** — screens and system-design work in
+Claude Design can (and should) happen any time in parallel with Phases 1-3; what's deliberately deferred is
+writing the frontend's code against real data, not designing what it looks like.
 
-**Deliverables:**
-- A timeline / proposal inbox: price history accumulating, a spoilage countdown ticking, a booking that
-  happened overnight while nobody was watching.
-- Daemon health view: last run, next scheduled run, error state, which tokens need re-auth.
+**Goal:** a real web app — not the Telegram bot repurposed, a superset of it — that makes the daemons' existence
+visible and gives Tier-B confirmations a proper home instead of only a chat message.
+
+**Screens (source of truth: the Claude Design mockups once they exist):**
+- **Timeline** — a feed of daemon activity: price history accumulating, a spoilage countdown ticking, a booking
+  that happened overnight while nobody was watching. This is the actual pitch — "look what already ran," not a
+  live click-through.
+- **Proposal inbox** — every open Tier-B proposal (a restock cart, a Dead Man's Switch order) with one-tap
+  confirm/reject, reading from the same `action_gate`/`proposals` tables the Telegram bot already writes to —
+  two surfaces on one source of truth, not two separate systems.
+- **Daemon health** — last run, next scheduled run, error state, and which server's token needs re-auth (the
+  no-refresh-tokens problem from Phase 0 has to surface here, not just in logs).
+- **Settings** — addresses, spend caps, tracked people (for Dead Man's Switch), depletion thresholds (for
+  Kitchen Entropy) — the knobs a user actually needs, not a config file only the developer can touch.
+
+**Stack (decide for real once Phase 4 starts, not now):** the backend is already Node/TS reading/writing
+Postgres directly — a server-rendered app (Next.js, or something lighter like Express + htmx) that queries the
+same DB avoids inventing a second API layer just to feed a SPA. Revisit this once the Claude Design mockups
+exist and it's clear how interactive the screens actually need to be.
 
 **Exit criteria:** the demo is "here's what's already been running," not a live click-through — the whole pitch
-depends on this distinction (review doc §7).
+depends on this distinction (review doc §7). The proposal inbox and the Telegram bot both correctly reflect the
+same underlying state (confirm in one, it disappears from the other).
 
 ---
 
