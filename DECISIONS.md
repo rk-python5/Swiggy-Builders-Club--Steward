@@ -28,6 +28,44 @@ check slot availability, so even dry-running end-to-end needs `npm run auth -- d
 
 ---
 
+## 2026-08-25 — Dineout schema verified live; the guessed version was wrong on several points
+
+**Decision:** rewrote `findSlot`/`runOne` in `src/daemons/standing-plans.ts` against the real schema, confirmed
+by calling `tools/list` and real `get_available_slots`/`search_restaurants_dineout`/`get_restaurant_details`
+calls with an actual Dineout token, rather than the `swiggy-mcp-reference.md`-derived guess from the day before.
+
+**What was actually wrong:**
+- `get_available_slots` takes `{restaurantId, date, latitude, longitude}` — no `addressId`, no `partySize`.
+  `get_saved_locations` never returns coordinates (privacy protection, same as Food/Instamart's `get_addresses`)
+  , so an address alone can't drive this call — **the world model needed `latitude`/`longitude` columns added
+  to `commitments` that weren't in the original Phase 1 schema.**
+- `book_table` needs `slotId` (a **number**, from `slot.deals[].slotId`) and `itemId` (from
+  `slot.deals[].itemId`), plus `reservationTime` (a unix timestamp, from the slot, not the deal) and
+  `guestCount` — not the `partySize`/string-`slotId` shape originally assumed.
+- **A third distinct response envelope shape**, on top of the two already known
+  (`structuredContent.<key>` for Food, `structuredContent.data.<key>` for `get_saved_locations`):
+  `get_available_slots`'s real data lives under `_meta.slots`, with `structuredContent` empty. There is no
+  universal envelope across tools, full stop — check every tool's actual response before parsing it, regardless
+  of which shape the last one used.
+- **Dineout's address ID space is NOT separate from Food/Instamart's**, contrary to
+  `swiggy-mcp-reference.md`'s explicit claim. `get_saved_locations` returned the identical ID (`8258911`, this
+  account's home) as Food's `get_addresses` for the same address. Still worth treating as unconfirmed for other
+  accounts — but on this account, sharing an address ID across servers was safe, not the error the reference
+  doc implied.
+- Found an undocumented tool, `render_restaurants_dineout` (a "how to display these search results" rendering
+  helper, per its accompanying prompt instructions) — not listed in `swiggy-mcp-reference.md`'s Dineout table.
+
+**Also learned (environmental, not a schema bug):** same-day booking returned zero available slots at every
+restaurant tried. Real free dinner slots did exist starting a few days out. A live regression test
+(`test/standing-plans.live.test.ts`) locks in the verified shape against a known-good future date/restaurant,
+skipping itself automatically if no Dineout token is stored (so `npm test` still passes on a fresh clone).
+
+**How this was actually checked:** ad hoc `node --import tsx -e "..."` one-liners calling `callTool`/`listTools`
+directly against the live Dineout server — the same pattern used to verify Food in Phase 0. Worth reusing this
+approach before trusting any unverified tool spec, Instamart included when Phase 2 gets there.
+
+---
+
 ## 2026-08-25 — How to actually read a Claude Design "Bundled Page" export
 
 **Finding, not really a decision, but worth recording so it isn't re-derived from scratch:** a downloaded

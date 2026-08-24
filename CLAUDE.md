@@ -104,6 +104,14 @@ calls. Spot-checked so far:
   fields are flat (`page`, `pageSize`, `totalCategories`, `hasMore`), not a nested `pagination` object; contrast
   `get_addresses`, which *does* nest one (`structuredContent.pagination.{page,pageSize,total,totalPages,hasMore}`)
   — don't assume pagination shape is consistent across tools.
+- 🆕 **A third envelope shape, confirmed on Dineout**: `get_available_slots`'s real data lives under
+  `_meta.slots`, with `structuredContent` empty — not `structuredContent.<key>` (Food) or
+  `structuredContent.data.<key>` (`get_saved_locations`). There is no universal envelope; check every tool's
+  actual response, every time, regardless of which shape the last one used. Also: Dineout's address ID space is
+  **not** separate from Food/Instamart's as the reference doc claims — `get_saved_locations` returned the
+  identical ID for this account's home address as Food's `get_addresses`. `book_table`/`get_available_slots`
+  need `latitude`/`longitude` directly (never returned by `get_saved_locations`, for privacy), not an address
+  ID — see `DECISIONS.md`'s 2026-08-25 Dineout-verification entry for the full corrected schema.
 
 For anything current/authoritative, prefer fetching live: `https://mcp.swiggy.com/builders/llms.txt` (index of
 every doc page, kept current by Swiggy) and `https://mcp.swiggy.com/builders/docs/reference/` — this repo's

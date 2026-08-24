@@ -9,6 +9,8 @@ export interface Commitment {
   cuisineQuery: string | null;
   addressId: string;
   restaurantId: string | null;
+  latitude: number | null;
+  longitude: number | null;
   active: boolean;
 }
 
@@ -22,6 +24,8 @@ function mapRow(row: any): Commitment {
     cuisineQuery: row.cuisine_query,
     addressId: row.address_id,
     restaurantId: row.restaurant_id,
+    latitude: row.latitude === null ? null : Number(row.latitude),
+    longitude: row.longitude === null ? null : Number(row.longitude),
     active: row.active,
   };
 }
@@ -34,10 +38,12 @@ export async function createCommitment(input: {
   cuisineQuery?: string;
   addressId: string;
   restaurantId?: string;
+  latitude: number;
+  longitude: number;
 }): Promise<Commitment> {
   const { rows } = await pool.query(
-    `INSERT INTO commitments (label, day_of_week, time_of_day, party_size, cuisine_query, address_id, restaurant_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+    `INSERT INTO commitments (label, day_of_week, time_of_day, party_size, cuisine_query, address_id, restaurant_id, latitude, longitude)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
     [
       input.label,
       input.dayOfWeek,
@@ -46,6 +52,8 @@ export async function createCommitment(input: {
       input.cuisineQuery ?? null,
       input.addressId,
       input.restaurantId ?? null,
+      input.latitude,
+      input.longitude,
     ],
   );
   return mapRow(rows[0]);
