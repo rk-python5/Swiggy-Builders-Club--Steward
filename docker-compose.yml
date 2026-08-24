@@ -1,0 +1,17 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: household_daemons
+      POSTGRES_PASSWORD: household_daemons
+      POSTGRES_DB: household_daemons
+    ports:
+      # Host port 5434 — 5432 is a native Postgres already running on this
+      # machine, and 5433 is taken by an unrelated project's container.
+      - "5434:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
