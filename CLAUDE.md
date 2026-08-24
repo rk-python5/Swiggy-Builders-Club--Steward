@@ -48,6 +48,13 @@ npm run auth -- food        # interactive PKCE login for one server (food | im |
 
 npm run crawl:once          # one manual crawl pass (Food domain) — verify before relying on the scheduler
 npm test                    # node --test, includes the simulation-harness fixture/fake-clock tests
+
+# Phase 1 (in progress)
+npm run auth -- dineout                 # needed once before the daemon can do anything real
+npm run add-commitment -- "<label>" <dayOfWeek 0-6> <HH:MM> <restaurantId> <addressId>
+npm run daemon:standing-plans           # one manual run, dry-run by default (no MCP call executes)
+npm run daemon:standing-plans -- --live # same, but actually calls book_table if a free slot matches
+npm run scheduler                       # starts pg-boss, ticks standing-plans every 15 min (DAEMON_DRY_RUN=false to go live)
 ```
 
 **Postgres runs on host port 5434, not 5432.** This machine already has a native Postgres on 5432 and an

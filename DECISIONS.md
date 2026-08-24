@@ -6,6 +6,28 @@ fall behind silently.
 
 ---
 
+## 2026-08-25 — Phase 1 spine built; Standing Plans blocked on live Dineout auth
+
+**Decision:** built the full Phase 1 spine (scheduler via pg-boss, action gate, minimal world model, the
+Standing Plans daemon, Telegram notify with a console fallback) against the best-available Dineout tool spec
+from `swiggy-mcp-reference.md` §4.3, rather than waiting for Dineout OAuth to exist before writing any code.
+
+**Why:** everything up to the live MCP call is independently verifiable without Dineout access — proved the
+idempotency guarantee (`propose()` with a repeated key resolves to the same row, doesn't double-book) against
+the real dev Postgres, and confirmed the scheduler starts, persists its own schema, and survives a clean
+restart. No reason to block all of that on one missing credential.
+
+**What's still unverified:** `get_available_slots` / `book_table`'s exact argument and response shape
+(`src/daemons/standing-plans.ts`'s `findSlot`) — `swiggy-mcp-reference.md` has already been wrong about Food
+before (tool count, response envelope), so treat this Dineout section with the same skepticism until checked
+against a real `tools/list` + a real call, the way Phase 0's Food crawler was checked before being trusted.
+
+**Consequence:** `runStandingPlans` defaults to `dryRun=true` everywhere (the CLI script, the scheduler) until
+that verification happens — dry-run skips the actual `book_table` call but still needs a valid Dineout token to
+check slot availability, so even dry-running end-to-end needs `npm run auth -- dineout` once.
+
+---
+
 ## 2026-08-25 — How to actually read a Claude Design "Bundled Page" export
 
 **Finding, not really a decision, but worth recording so it isn't re-derived from scratch:** a downloaded
