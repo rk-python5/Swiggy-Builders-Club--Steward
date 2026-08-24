@@ -27,9 +27,9 @@ safe to cut on a Phase 0 and which aren't. Concretely, in this repo that means:
 Building **Household Daemons** (see `Household_Daemons_Review_Draft.docx`) — a persistence layer + scheduler
 running autonomous daemons against the Swiggy MCP, each ending in a real transaction. Phase 0 (foundation: repo
 scaffold, manual-PKCE OAuth with headless-refresh investigation, a Food-domain crawler, a simulation harness) is
-built. See `/Users/rehaankhatri/.claude/plans/toasty-doodling-starlight.md` for the Phase 0 plan and rationale;
-Phases 1-4 (scheduler, action gate, world model, the three daemons) are scoped in the review doc but not yet
-built.
+built. **See `PLAN.md` for the full start-to-end plan** (Phases 0-5, each with deliverables and exit criteria) —
+it supersedes the review doc's brief §7 with what Phase 0 actually taught us. Phases 1-5 (scheduler, action
+gate, world model, the three daemons, the surface, production) are planned but not yet built.
 
 Stack: Node.js + TypeScript, Postgres via Docker Compose, no ORM (`node-pg-migrate` + `pg` directly), Node's
 built-in test runner via `tsx`.
