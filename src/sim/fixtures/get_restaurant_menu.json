@@ -1,0 +1,168 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Menu for Charcoal Eats - Biryani & Beyond (ID: 328876) [image: https://media-assets.swiggy.com/swiggy/image/upload/RX_THUMBNAIL/IMAGES/VENDOR/2025/6/6/759012e9-3437-46ba-9490-68fe85b98e62_328876.jpg]\nPage 1 \u2014 2 of 19 categories. Use page=2 for more.\n\n## 99 Store\n  - Paneer Tikka (3 Pcs) \u2014 \u20b9189 | Veg, has addons [image: https://media-assets.swiggy.com/swiggy/image/upload/FOOD_CATALOG/IMAGES/CMS/2026/6/25/aa7041c0-358e-4c3a-8bf4-a5c158a5006a_688484c7-694a-4762-85e8-5055e5c91fd2.jpg] (ID: 175008801)\n  - Hara Bhara Kebab (3 Pcs) \u2014 \u20b9149 | Veg, has addons [image: https://media-assets.swiggy.com/swiggy/image/upload/FOOD_CATALOG/IMAGES/CMS/2026/6/25/494f380f-e27a-4953-81a3-8c8269ec6b60_fa187c46-1827-42de-88fe-71944b1f2629.jpg] (ID: 203954870)\n  - Veg Galouti Kebab (3 Pcs) \u2014 \u20b9149 | Veg [image: https://media-assets.swiggy.com/swiggy/image/upload/FOOD_CATALOG/IMAGES/CMS/2025/8/25/f0014ab0-5828-438a-9728-a56067f3bdc1_f7575e89-e37b-433d-95f8-e983518cab33.png] (ID: 175005378)\n  - Veg Khasta Kebab (5 Pcs) \u2014 \u20b9149 | Veg [image: https://media-assets.swiggy.com/swiggy/image/upload/FOOD_CATALOG/IMAGES/CMS/2025/8/26/4e0d52fd-af0a-4b0b-82f6-6ba11127dc20_0be404e0-b78c-4678-93be-f62132d53c1a.png] (ID: 175005379)\n  - Beetroot Tikki (3 Pcs) \u2014 \u20b9149 | Veg, has addons [image: https://media-assets.swiggy.com/swiggy/image/upload/FOOD_CATALOG/IMAGES/CMS/2026/6/25/dfc2b2fd-ee9b-456c-a402-6ae3df624fd9_451346b2-e4ac-43ad-90b2-c67a367158d7.jpg] (ID: 175005376)\n  - Charcoal Veg Mini Biryani Bowl \u2014 \u20b9229 | Veg, Bestseller, has addons [image: https://media-assets.swiggy.com/swiggy/image/upload/FOOD_CATALOG/IMAGES/CMS/2026/2/9/36eb7b00-eb55-4459-a1fb-2d2d566ce388_a8a55f79-12ac-4a18-832b-e4918f986515.jpg] (ID: 189303535)\n  - Charcoal Egg Mini Biryani Bowl \u2014 \u20b9229 | Non-veg, Bestseller, has addons [image: https://media-assets.swiggy.com/swiggy/image/upload/FOOD_CATALOG/IMAGES/CMS/2026/2/9/e5f439eb-477e-4cee-8705-dd3752fe20d7_fd663233-b0c0-4829-9ab5-7dcec800c003.jpg] (ID: 189303537)\n  - Double Egg Roll - 7 Inches \u2014 \u20b9199 | Non-veg, has addons [image: https://media-assets.swiggy.com/swiggy/image/upload/FOOD_CATALOG/IMAGES/CMS/2025/5/17/986e0872-86d8-489f-bbcd-23fcc4340684_31cc61b9-602a-44de-9740-1e5aff99c3ea.jpg] (ID: 161237592)\n## Upto 70% off\n  - Plain Raita (100 Gms) \u2014 \u20b949 | Veg [image: https://media-assets.swiggy.com/swiggy/image/upload/FOOD_CATALOG/IMAGES/CMS/2025/8/30/cb4f0ce1-491f-4799-91ac-a5be4449cc80_ccaf0a3b-bfa5-4837-8d6e-be5a5460dee4.jpg] (ID: 151124609)\n  - Charcoal Veg Biryani Bowl \u2014 \u20b9389 | Veg, Bestseller, has variants, has addons [image: https://media-assets.swiggy.com/swiggy/image/upload/FOOD_CATALOG/IMAGES/CMS/2025/5/23/364eb00e-b639-4118-b324-960ab6164712_b3265ac2-ab70-4695-82bf-5197efa2e5fa.jpg] (ID: 156559985)\n\nTo order an item, use search_menu with the item name and restaurantId to get full customization details."
+    }
+  ],
+  "structuredContent": {
+    "restaurant": {
+      "id": "328876",
+      "name": "Charcoal Eats - Biryani & Beyond",
+      "city": "Mumbai",
+      "areaName": "APMC Market",
+      "cuisines": [
+        "Biryani",
+        "Kebabs"
+      ],
+      "avgRating": 4.3,
+      "avgRatingString": "4.3",
+      "totalRatingsString": "5.4K+ ratings",
+      "costForTwoMessage": "\u20b9499 for two",
+      "isOpen": true,
+      "deliveryTime": 17,
+      "slaString": "15-20 MINS",
+      "address": "Shop No.A/2,House No.527,Shiv Smurti Bldg.,Juhu Village, Vashi Zone (Except APMC Market I, APMC Market II & Onion, Potato, Fruit & Vegatable Market), Navi Mumbai Municipal Corporation (Thane Zone-4), Maharashtra - 400703",
+      "imageUrl": "https://media-assets.swiggy.com/swiggy/image/upload/RX_THUMBNAIL/IMAGES/VENDOR/2025/6/6/759012e9-3437-46ba-9490-68fe85b98e62_328876.jpg"
+    },
+    "categories": [
+      {
+        "title": "99 Store",
+        "categoryId": "1234567",
+        "items": [
+          {
+            "id": "175008801",
+            "name": "Paneer Tikka (3 Pcs)",
+            "description": "(90 gms) soft paneer (100% certified) chunks marinated in spiced yogurt and grilled to smoky perfect...",
+            "price": 189,
+            "inStock": 1,
+            "isVeg": true,
+            "imageUrl": "https://media-assets.swiggy.com/swiggy/image/upload/FOOD_CATALOG/IMAGES/CMS/2026/6/25/aa7041c0-358e-4c3a-8bf4-a5c158a5006a_688484c7-694a-4762-85e8-5055e5c91fd2.jpg",
+            "hasVariants": false,
+            "hasAddons": true
+          },
+          {
+            "id": "203954870",
+            "name": "Hara Bhara Kebab (3 Pcs)",
+            "description": "(3 pieces) tender hara bhara kebab made with broccoli blended with nuts, herbs, and mild spices, sha...",
+            "price": 149,
+            "inStock": 1,
+            "isVeg": true,
+            "imageUrl": "https://media-assets.swiggy.com/swiggy/image/upload/FOOD_CATALOG/IMAGES/CMS/2026/6/25/494f380f-e27a-4953-81a3-8c8269ec6b60_fa187c46-1827-42de-88fe-71944b1f2629.jpg",
+            "hasVariants": false,
+            "hasAddons": true
+          },
+          {
+            "id": "175005378",
+            "name": "Veg Galouti Kebab (3 Pcs)",
+            "description": "(3 pieces) soft vegetarian kebabs made with a blend of lentils, veggies, and lucknowi spices, pan-se...",
+            "price": 149,
+            "inStock": 1,
+            "isVeg": true,
+            "imageUrl": "https://media-assets.swiggy.com/swiggy/image/upload/FOOD_CATALOG/IMAGES/CMS/2025/8/25/f0014ab0-5828-438a-9728-a56067f3bdc1_f7575e89-e37b-433d-95f8-e983518cab33.png",
+            "hasVariants": false,
+            "hasAddons": false
+          },
+          {
+            "id": "175005379",
+            "name": "Veg Khasta Kebab (5 Pcs)",
+            "description": "(5 pieces) delicious blend of seasonal vegetables, herbs, and spices shaped into soft kebabs and gri...",
+            "price": 149,
+            "inStock": 1,
+            "isVeg": true,
+            "rating": "5.0",
+            "imageUrl": "https://media-assets.swiggy.com/swiggy/image/upload/FOOD_CATALOG/IMAGES/CMS/2025/8/26/4e0d52fd-af0a-4b0b-82f6-6ba11127dc20_0be404e0-b78c-4678-93be-f62132d53c1a.png",
+            "hasVariants": false,
+            "hasAddons": false
+          },
+          {
+            "id": "175005376",
+            "name": "Beetroot Tikki (3 Pcs)",
+            "description": "(3 pieces) hearty blend of beetroot, potatoes, and spices shaped into golden pan-seared tikkis, cris...",
+            "price": 149,
+            "inStock": 1,
+            "isVeg": true,
+            "imageUrl": "https://media-assets.swiggy.com/swiggy/image/upload/FOOD_CATALOG/IMAGES/CMS/2026/6/25/dfc2b2fd-ee9b-456c-a402-6ae3df624fd9_451346b2-e4ac-43ad-90b2-c67a367158d7.jpg",
+            "hasVariants": false,
+            "hasAddons": true
+          },
+          {
+            "id": "189303535",
+            "name": "Charcoal Veg Mini Biryani Bowl",
+            "description": "(300 gms) (medium spiced) charcoal's  signature vegetables cooked with basmati rice and lightly smok...",
+            "price": 229,
+            "inStock": 1,
+            "isVeg": true,
+            "isBestseller": true,
+            "rating": "4.5",
+            "imageUrl": "https://media-assets.swiggy.com/swiggy/image/upload/FOOD_CATALOG/IMAGES/CMS/2026/2/9/36eb7b00-eb55-4459-a1fb-2d2d566ce388_a8a55f79-12ac-4a18-832b-e4918f986515.jpg",
+            "hasVariants": false,
+            "hasAddons": true
+          },
+          {
+            "id": "189303537",
+            "name": "Charcoal Egg Mini Biryani Bowl",
+            "description": "(300 gms) (medium spiced) charcoal's signature masala egg cooked with basmati rice and lightly smoke...",
+            "price": 229,
+            "inStock": 1,
+            "isVeg": false,
+            "isBestseller": true,
+            "rating": "4.6",
+            "imageUrl": "https://media-assets.swiggy.com/swiggy/image/upload/FOOD_CATALOG/IMAGES/CMS/2026/2/9/e5f439eb-477e-4cee-8705-dd3752fe20d7_fd663233-b0c0-4829-9ab5-7dcec800c003.jpg",
+            "hasVariants": false,
+            "hasAddons": true
+          },
+          {
+            "id": "161237592",
+            "name": "Double Egg Roll - 7 Inches",
+            "description": "(250 gms) fluffy double-egg omelette layered with onions, chutney, and house spices, wrapped in your...",
+            "price": 199,
+            "inStock": 1,
+            "isVeg": false,
+            "rating": "4.0",
+            "imageUrl": "https://media-assets.swiggy.com/swiggy/image/upload/FOOD_CATALOG/IMAGES/CMS/2025/5/17/986e0872-86d8-489f-bbcd-23fcc4340684_31cc61b9-602a-44de-9740-1e5aff99c3ea.jpg",
+            "hasVariants": false,
+            "hasAddons": true
+          }
+        ],
+        "totalItems": 8,
+        "hasMoreItems": false
+      },
+      {
+        "title": "Upto 70% off",
+        "categoryId": "0",
+        "items": [
+          {
+            "id": "151124609",
+            "name": "Plain Raita (100 Gms)",
+            "description": "(100 gms) plain raita with masala",
+            "price": 49,
+            "inStock": 1,
+            "isVeg": true,
+            "imageUrl": "https://media-assets.swiggy.com/swiggy/image/upload/FOOD_CATALOG/IMAGES/CMS/2025/8/30/cb4f0ce1-491f-4799-91ac-a5be4449cc80_ccaf0a3b-bfa5-4837-8d6e-be5a5460dee4.jpg",
+            "hasVariants": false,
+            "hasAddons": false
+          },
+          {
+            "id": "156559985",
+            "name": "Charcoal Veg Biryani Bowl",
+            "description": "(medium spiced) charcoal's signature vegetables slow-cooked with fragrant basmati rice in a lightly ...",
+            "price": 389,
+            "inStock": 1,
+            "isVeg": true,
+            "isBestseller": true,
+            "imageUrl": "https://media-assets.swiggy.com/swiggy/image/upload/FOOD_CATALOG/IMAGES/CMS/2025/5/23/364eb00e-b639-4118-b324-960ab6164712_b3265ac2-ab70-4695-82bf-5197efa2e5fa.jpg",
+            "hasVariants": true,
+            "hasAddons": true
+          }
+        ],
+        "totalItems": 2,
+        "hasMoreItems": false
+      }
+    ],
+    "totalCategories": 19,
+    "page": 1,
+    "pageSize": 2,
+    "hasMore": true
+  }
+}

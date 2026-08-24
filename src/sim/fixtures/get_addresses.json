@@ -1,0 +1,34 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Found 2 saved addresses (page 1 of 1, showing 2):\n1. [Home] Test User: 12 Example Street, Sample Nagar, Test City, Test State 400001, India (ID: fixture-addr-home-001)\n2. [Work] Test User: 45 Placeholder Road, Fixture Business Park, Test City, Test State 400002, India (ID: fixture-addr-work-002)\n\nAsk the user which address to use for delivery.\n\n⚠️ A rich UI widget may be shown to the user with this data. Avoid restating everything the widget already displays — instead, provide a brief recommendation or ask what they'd like to do next."
+    }
+  ],
+  "structuredContent": {
+    "addresses": [
+      {
+        "id": "fixture-addr-home-001",
+        "addressLine": "Test User: 12 Example Street, Sample Nagar, Test City, Test State 400001, India",
+        "phoneNumber": "****0000",
+        "addressCategory": "Home",
+        "addressTag": "Home"
+      },
+      {
+        "id": "fixture-addr-work-002",
+        "addressLine": "Test User: 45 Placeholder Road, Fixture Business Park, Test City, Test State 400002, India",
+        "phoneNumber": "****0000",
+        "addressCategory": "Work",
+        "addressTag": "Work"
+      }
+    ],
+    "total": 2,
+    "pagination": {
+      "page": 1,
+      "pageSize": 3,
+      "total": 2,
+      "totalPages": 1,
+      "hasMore": false
+    }
+  }
+}
