@@ -4,10 +4,41 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project state
 
-This repo is currently pre-build: it holds the legal/access setup and MCP wiring for a Swiggy Builders Club
-integration, but no application code has been written yet and no language/stack has been chosen. See
-`Swiggy MCP - Ideation Notes.docx` for the brainstormed product directions under consideration. There are no
-build, lint, or test commands yet — add them here once a stack is picked.
+Building **Household Daemons** (see `Household_Daemons_Review_Draft.docx`) — a persistence layer + scheduler
+running autonomous daemons against the Swiggy MCP, each ending in a real transaction. Phase 0 (foundation: repo
+scaffold, manual-PKCE OAuth with headless-refresh investigation, a Food-domain crawler, a simulation harness) is
+built. See `/Users/rehaankhatri/.claude/plans/toasty-doodling-starlight.md` for the Phase 0 plan and rationale;
+Phases 1-4 (scheduler, action gate, world model, the three daemons) are scoped in the review doc but not yet
+built.
+
+Stack: Node.js + TypeScript, Postgres via Docker Compose, no ORM (`node-pg-migrate` + `pg` directly), Node's
+built-in test runner via `tsx`.
+
+## Commands
+
+```bash
+npm install                # install dependencies
+cp .env.example .env       # first time only — see note on DB port below
+
+npm run db:up               # docker compose up -d (Postgres on host port 5434, NOT 5432 — see note below)
+npm run db:migrate          # apply src/db/migrations/*.sql
+
+npm run auth -- food        # interactive PKCE login for one server (food | im | dineout)
+                             # opens a browser for phone+OTP, auto-captures the redirect, stores the token
+
+npm run crawl:once          # one manual crawl pass (Food domain) — verify before relying on the scheduler
+npm test                    # node --test, includes the simulation-harness fixture/fake-clock tests
+```
+
+**Postgres runs on host port 5434, not 5432.** This machine already has a native Postgres on 5432 and an
+unrelated project's container on 5433 — both discovered by hitting "role does not exist" / "port already
+allocated" errors when this was first set up. `docker-compose.yml` and `.env.example` are already set to 5434;
+don't "fix" this back to 5432 without checking `lsof -nP -iTCP:5432,5433 -sTCP:LISTEN` first.
+
+**No `@modelcontextprotocol/sdk` client/transport is used** — `src/mcp/client.ts` is a thin custom fetch-based
+JSON-RPC caller. This is deliberate: the SDK's OAuth provider does spec-compliant discovery, which fails against
+Swiggy's currently-broken authorization-server metadata (see below). `src/oauth/` reimplements the PKCE dance by
+hand instead.
 
 ## Tool inventory & call sequences — use `swiggy-mcp-reference.md`
 
@@ -27,12 +58,25 @@ calls. Spot-checked so far:
   against `mcp.swiggy.com/food` returned **20 tools** — the doc's Food table omits `create_address` and
   `delete_address` entirely. Treat per-server/total tool counts anywhere (this doc, `llms.txt`, the reference
   site) as unconfirmed until re-checked with a live `tools/list` call.
-- ⚠️ **Refresh-token claim is unconfirmed.** The doc asserts OAuth now issues refresh tokens. Swiggy's
-  auth-server metadata does list `refresh_token` as a supported grant type, but an actual token exchange
-  performed this session returned no `refresh_token` field. Don't build refresh-token handling on faith —
-  confirm empirically first.
+- ❌ **Refresh-token claim is wrong — confirmed, not just unconfirmed.** The doc asserts OAuth now issues
+  refresh tokens. Tested twice: once with a client that didn't request the grant, and again (Phase 0's
+  `npm run auth`) with a client that explicitly registered `grant_types: ["authorization_code", "refresh_token"]`.
+  Both times the token response had no `refresh_token` field. Swiggy's auth-server metadata lists
+  `refresh_token` as a supported grant type, but doesn't actually issue one — metadata is aspirational here.
+  **Design around this**: access tokens last 5 days with no way to renew headlessly; `getValidToken()`
+  (`src/oauth/get-valid-token.ts`) throws a clear "re-run `npm run auth`" error on expiry rather than pretending
+  refresh will save it. A daemon that needs to survive past 5 days unattended needs a different answer than
+  "wait for refresh" — that's an open problem for Phase 1+, not solved here.
 - ⚠️ Specifics with no independent source (e.g. the cancellation support phone number, the "widely-cited build
   report" about single-agent tool-registration failure) should be treated as unverified, not fact.
+- 🆕 **Tool response envelope, confirmed live**: `tools/call` results are the standard MCP shape
+  `{ content: [...], structuredContent: {...} }` — parse `structuredContent`, not a flat `{success, data}` as
+  the reference doc's §3 claims. Not documented anywhere: `get_restaurant_menu`'s categories sometimes nest a
+  further `subcategories` level instead of `items` directly (seen live on `328876`'s "Shravan Special" etc.) —
+  handle both shapes (`src/crawler/food.ts`'s `flattenItems` does this). `get_restaurant_menu`'s pagination
+  fields are flat (`page`, `pageSize`, `totalCategories`, `hasMore`), not a nested `pagination` object; contrast
+  `get_addresses`, which *does* nest one (`structuredContent.pagination.{page,pageSize,total,totalPages,hasMore}`)
+  — don't assume pagination shape is consistent across tools.
 
 For anything current/authoritative, prefer fetching live: `https://mcp.swiggy.com/builders/llms.txt` (index of
 every doc page, kept current by Swiggy) and `https://mcp.swiggy.com/builders/docs/reference/` — this repo's
