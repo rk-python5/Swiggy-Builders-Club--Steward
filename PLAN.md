@@ -106,33 +106,52 @@ DB state; the interactive router picks the correct vertical on a handful of hand
 
 Without this phase the project stops at a backend + a Telegram bot — a working model, not a product. It's a
 real deliverable, not an afterthought; it's just sequenced last because the *build* needs real accumulated
-daemon activity to be worth looking at. **Design is not gated on that** — screens and system-design work in
-Claude Design can (and should) happen any time in parallel with Phases 1-3; what's deliberately deferred is
-writing the frontend's code against real data, not designing what it looks like.
+daemon activity to be worth looking at. **Design is not gated on that** — the mockups below already exist,
+built in Claude Design (`Steward Web.html` / `Steward Mobile.html`, a working React prototype, plus a separate
+published "Household Daemons Architecture" artifact). What's deliberately deferred is writing the frontend's
+*production* code against real data, not designing what it looks like.
 
-**Goal:** a real web app — not the Telegram bot repurposed, a superset of it — that makes the daemons' existence
-visible and gives Tier-B confirmations a proper home instead of only a chat message.
+**Goal:** a real web + mobile app called **Steward** — not the Telegram bot repurposed, a superset of it — that
+makes the daemons' existence visible and gives Tier-B confirmations a proper home instead of only a chat
+message. "Powered by Swiggy" is already designed into the header on every screen, which incidentally satisfies
+the Integration Agreement's Clause 3.4(ii) branding requirement for free.
 
-**Screens (source of truth: the Claude Design mockups once they exist):**
-- **Timeline** — a feed of daemon activity: price history accumulating, a spoilage countdown ticking, a booking
-  that happened overnight while nobody was watching. This is the actual pitch — "look what already ran," not a
-  live click-through.
-- **Proposal inbox** — every open Tier-B proposal (a restock cart, a Dead Man's Switch order) with one-tap
-  confirm/reject, reading from the same `action_gate`/`proposals` tables the Telegram bot already writes to —
-  two surfaces on one source of truth, not two separate systems.
-- **Daemon health** — last run, next scheduled run, error state, and which server's token needs re-auth (the
-  no-refresh-tokens problem from Phase 0 has to surface here, not just in logs).
-- **Settings** — addresses, spend caps, tracked people (for Dead Man's Switch), depletion thresholds (for
-  Kitchen Entropy) — the knobs a user actually needs, not a config file only the developer can touch.
+**Screens (from the actual mockups — extracted by rendering them, since the exported files are compiled React
+bundles with no readable markup, not plain HTML):**
+- **Dashboard/Home** — one card per daemon (icon, name, one-line description, vertical in parens): a colored
+  left-border and a tier pill (green `TIER A · AUTONOMOUS` / amber `TIER B · CONSENT`) communicate risk at a
+  glance. Tier A shows a status line and "No action needed"; Tier B shows a status line and a **Review** button
+  when a proposal's waiting.
+- **Timeline** — reverse-chronological feed, exactly matching the "here's what already ran" pitch from the
+  original plan: completed autonomous actions (green dot), a proposal awaiting a tap (amber dot), a daemon
+  currently watching with no action yet (gray dot) — e.g. *"Dead Man's Switch is watching — No activity for 6h
+  · will propose an order at 9h."*
+- **Approval flow** (web: modal from a Dashboard card's Review button; mobile: dedicated **Approve** tab) — tier
+  badge, proposal summary, a **Delivery address** section, a **Payment** section ("UPI · will be used
+  automatically"), then two actions: **Approve order** and **Snooze**.
+- **Architecture** (web only, not on mobile — a dev/reviewer view, not an end-user one) — the same six-domain
+  diagram as the standalone Architecture artifact, embedded directly in the app.
 
-**Stack (decide for real once Phase 4 starts, not now):** the backend is already Node/TS reading/writing
-Postgres directly — a server-rendered app (Next.js, or something lighter like Express + htmx) that queries the
-same DB avoids inventing a second API layer just to feed a SPA. Revisit this once the Claude Design mockups
-exist and it's clear how interactive the screens actually need to be.
+**Two real gaps the mockups surface — not cosmetic, both change earlier phases:**
+1. **No Settings screen exists.** Nothing designed yet for addresses, spend caps, tracked people (Dead Man's
+   Switch), or depletion thresholds (Kitchen Entropy) — the knobs a real user needs, not a config file only the
+   developer can touch. Needs its own design pass before or during Phase 4, it's not just an implementation
+   detail to backfill.
+2. **"Snooze," not "Reject."** The approval flow only offers *Approve order* / *Snooze* — deferring a proposal
+   to reappear later, not killing it outright. That's a real state the `proposals` table (Phase 2) needs to
+   support — `pending` / `approved` / `snoozed(until)` — not the simpler accept/reject binary planned there
+   originally. Update Phase 2's action-gate schema when it's actually built.
+
+**Stack:** the mockups are a real working React prototype (in-browser Babel transform via CDN scripts) — not
+production-ready as-is (in-browser transpilation is a prototyping shortcut, not something to ship), but the
+component structure (`App` → `Sidebar` + `DaemonList` / `TimelineView` / `ArchitectureView`, plus an
+`ApprovalModal`) is a legitimate starting skeleton to port into a real bundled setup (Next.js, or Vite + React)
+reading the same Postgres tables directly — a good head start over designing the component boundaries from
+scratch.
 
 **Exit criteria:** the demo is "here's what's already been running," not a live click-through — the whole pitch
-depends on this distinction (review doc §7). The proposal inbox and the Telegram bot both correctly reflect the
-same underlying state (confirm in one, it disappears from the other).
+depends on this distinction (review doc §7). The Approval flow and the Telegram bot both correctly reflect the
+same underlying state (approve/snooze in one, it updates in the other).
 
 ---
 
