@@ -1,0 +1,5 @@
+# Empty for now — this is a Node/TS project (see package.json). This venv
+# exists for auxiliary/future Python work only (e.g. the ML models scoped
+# for later phases in Household_Daemons_Review_Draft.docx §8.3, or one-off
+# analysis scripts against the crawled Postgres data). Add packages here as
+# that work starts.

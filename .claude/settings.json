@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"/Users/rehaankhatri/SWIGGY BUILDERS CLUB/.claude/hooks/docs-nudge.sh\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
