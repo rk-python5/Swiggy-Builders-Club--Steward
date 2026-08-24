@@ -6,6 +6,27 @@ fall behind silently.
 
 ---
 
+## 2026-08-25 — How to actually read a Claude Design "Bundled Page" export
+
+**Finding, not really a decision, but worth recording so it isn't re-derived from scratch:** a downloaded
+Claude Design export (e.g. `Steward Web.html`) is a compiled React app bundle, not plain HTML — grep/text
+search finds nothing, because the actual screen content is packed into an opaque blob that only unpacks at
+runtime in a real browser (the visible "Unpacking..." loader is literal). A *published Claude Code Artifact*
+(like the Architecture diagram) is different — that's a self-contained snapshot with the real content readable
+directly as JSON in the page (`appifact-doc`/`canvas.json`), no execution needed.
+
+**What worked:** installed Playwright + Chromium locally (`npm install playwright` in a scratch dir, then
+`npx playwright install chromium`), opened the file with `file://`, waited a few seconds for it to unpack, then
+pulled `document.body.innerText` and a full-page screenshot. Had to click through the app's own nav (Dashboard/
+Timeline/Architecture on web, Home/Approve/Timeline on mobile) to capture every screen — only the default view
+renders without interaction.
+
+**Consequence:** if a future session gets handed another Claude Design HTML export to read, don't try grep
+first assuming it might be plain markup — go straight to rendering it. If Playwright/Chromium isn't already
+installed, budget ~200MB and a couple minutes for the download.
+
+---
+
 ## 2026-08-24 — Refresh tokens confirmed NOT issued by Swiggy
 
 **Decision:** Design Phase 1+ assuming no headless token renewal is possible. `getValidToken()` throws a clear
