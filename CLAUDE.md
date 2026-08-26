@@ -55,14 +55,20 @@ npm run add-commitment -- "<label>" <dayOfWeek 0-6> <HH:MM> <restaurantId> <addr
 npm run daemon:standing-plans           # one manual run, dry-run by default (no MCP call executes)
 npm run daemon:standing-plans -- --live # same, but actually calls book_table if a free slot matches
 
-# Phase 2 (in progress -- action gate cap + pantry model built, Kitchen Entropy blocked on Instamart auth)
+# Phase 2 ✅ MVP achieved 2026-08-26 -- see DECISIONS.md
 npm run auth -- im                          # needed once before Kitchen Entropy can do anything real
 npm run record-purchase -- <itemName> <quantity> <unit> <shelfLifeDays>
 npm run daemon:kitchen-entropy              # one manual run, dry-run by default
 npm run daemon:kitchen-entropy -- --live    # same, but actually calls checkout if something's below threshold
 
-npm run scheduler                       # starts pg-boss: standing-plans every 15 min, kitchen-entropy hourly
-                                         # (DAEMON_DRY_RUN=false env var to make either go live)
+# Phase 3 (daemon done, interactive router deferred pending Telegram -- see PLAN.md/DECISIONS.md)
+npm run add-watched-person -- "<name>" <addressId> [quietThresholdHours=48]
+npm run check-in -- <watchedPersonId>       # resets the quiet clock -- a call, a message, an order placed
+npm run daemon:dead-mans-switch             # one manual run, dry-run by default
+npm run daemon:dead-mans-switch -- --live   # same, but actually calls place_food_order if someone's quiet
+
+npm run scheduler   # starts pg-boss: standing-plans/15min, kitchen-entropy/hourly, dead-mans-switch/30min
+                     # (DAEMON_DRY_RUN=false env var to make any of them go live)
 ```
 
 **Postgres runs on host port 5434, not 5432.** This machine already has a native Postgres on 5432 and an
@@ -127,6 +133,13 @@ calls. Spot-checked so far:
   instead of throwing. Any code calling the MCP layer directly (bypassing `callTool`) needs the same check.
   Also confirmed: the `{success, error}` shape the reference doc's §3 called "universal" does show up for real —
   but only on tool-level *errors*, not as the general success envelope it claimed.
+- 🆕 **A fifth envelope shape, on Food's cart tools**: `get_food_cart`'s real total lives at
+  `structuredContent.data.pricing.to_pay`, deeper-nested than any other tool seen so far. `update_food_cart`
+  takes `cartItems` (not `items`) with `menu_item_id` (not `itemId`), plus a required `addressId` on both
+  `update_food_cart` and `get_food_cart`. **Hard rule, stated because violating it produced a real near-miss**:
+  when a value drives a spend decision (an action-gate proposal's `amount_paise`), never fall back to a
+  proxy/guessed value if the real field is missing — throw. A fallback chain here once silently produced ₹29 for
+  a cart whose real total (delivery + taxes included) was ₹132. See `DECISIONS.md`'s 2026-08-26 entries.
 
 For anything current/authoritative, prefer fetching live: `https://mcp.swiggy.com/builders/llms.txt` (index of
 every doc page, kept current by Swiggy) and `https://mcp.swiggy.com/builders/docs/reference/` — this repo's

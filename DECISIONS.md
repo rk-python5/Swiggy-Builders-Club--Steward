@@ -6,6 +6,61 @@ fall behind silently.
 
 ---
 
+## 2026-08-26 — Phase 3: Dead Man's Switch redesigned around a real API constraint
+
+**Decision:** "watches a tracked person's ordering activity" (the review doc's original framing) is not
+buildable — a single OAuth token grants access to exactly one Swiggy account, and no tool reads a *different*
+account's order history. Redesigned "quiet" to mean our own last-contact record (`watched_people.last_contact_at`,
+reset by an explicit check-in — a call, a message, an order placed for them), not observed Swiggy data.
+
+**Why:** better to correct the design against what the API actually allows than build something that looks
+right until someone asks "wait, how does it know their account went quiet?" and there's no answer. This is the
+same category of correction as Phase 1/2's schema fixes, just at the design level instead of the argument-shape
+level.
+
+**Consequence:** the daemon is honest about what it can and can't know — it's watching *our* attentiveness, not
+theirs. A future refinement could add a manual "they haven't called" check-in trigger from the Steward UI, but
+that's still human-reported, not Swiggy-observed.
+
+---
+
+## 2026-08-26 — Food cart schema verified live; a dangerous fallback caught and removed
+
+**Decision:** fixed `update_food_cart`/`get_food_cart`'s args against real `tools/list` (Phase 0 only ever
+crawled read-only menu data, never actually called these). Real shape: `update_food_cart` takes `cartItems`
+(not `items`) with `menu_item_id` (not `itemId`), plus a required `addressId` that was missing entirely;
+`get_food_cart` also requires `addressId`. The real cart total lives at
+`structuredContent.data.pricing.to_pay` — yet another distinct envelope shape on top of the four already found.
+
+**The more important catch:** the first version had a fallback chain
+(`cart.structuredContent.total ?? cart.structuredContent.billTotal ?? picked.item.price`) that silently landed
+on `picked.item.price` when neither guessed field existed — producing a proposal for **₹29 when the real total
+(with delivery + taxes) was ₹132**. A ₹103 undercount on a real spend proposal is a serious near-miss, not a
+cosmetic bug. Caught by manually re-checking the raw `get_food_cart` response rather than trusting the daemon's
+own output — the same discipline that caught Instamart's ₹0 bug the same day.
+
+**Rule going forward, stated explicitly because two same-day bugs came from violating it:** when a value drives
+a spend decision (the `amount_paise` an action-gate proposal carries), never fall back to a proxy/guessed value
+if the real field is missing — throw. A wrong number that looks plausible is worse than a loud failure.
+
+---
+
+## 2026-08-26 — Interactive re-solve router deferred, not built
+
+**Decision:** Phase 3's other deliverable (a small free-text router across all three servers, e.g. "not cooking
+tonight") is not built yet. Daemon logic (Dead Man's Switch) and the three-daemons-concurrent exit criterion
+are both done; the router is deferred.
+
+**Why:** the router needs an actual input channel to receive free text from a human, and none exists yet — the
+Telegram bot is still console-logging only (explicitly deferred per your direction, "we will integrate telegram
+bot accordingly later"). Building a router with nothing to route from would be untestable scaffolding, not a
+real deliverable.
+
+**Consequence:** revisit this once Telegram (or Phase 4's web surface) exists as a real input channel — it's
+not dropped, just correctly sequenced after something exists to wire it to.
+
+---
+
 ## 2026-08-26 — Instamart verified live; found a real bug in the MCP client itself, not just a schema guess
 
 **Decision:** fixed `callTool` (`src/mcp/client.ts`) to check for tool-level errors (`result.isError`), not just

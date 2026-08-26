@@ -99,23 +99,32 @@ logging is verifiably populating a table nothing consumes yet.
 
 ---
 
-## Phase 3 — Third Daemon + Interactive Path (Dead Man's Switch / Food)
+## Phase 3 — Third Daemon (Dead Man's Switch / Food) 🟡 daemon done, router deferred — 2026-08-26
+
+**Design correction from the original framing:** a single OAuth token grants access to exactly one Swiggy
+account — there is no tool that reads a *different* account's order history, so "watches a tracked person's
+`get_food_orders` history" isn't actually buildable. Redesigned around what's real: `watched_people` tracks
+*our own* last-contact record (reset by an explicit check-in), not observed Swiggy activity. See
+`DECISIONS.md`'s 2026-08-26 entries for the full reasoning, plus a serious near-miss caught along the way — a
+fallback chain that would have proposed ₹29 when the real cart total (delivery + taxes included) was ₹132.
 
 **Goal:** an absence-triggered (not presence-triggered) daemon, and the one place a cross-server router is
 allowed to exist.
 
 **Deliverables:**
 - Food OAuth already exists from Phase 0 — re-auth if the token's since expired.
-- Daemon: Dead Man's Switch — watches a tracked person's `get_food_orders` history; if it goes quiet past a
-  threshold, proposes ordering food to their address as a nudge to call (Tier B — needs the account holder's
-  confirmation, not the recipient's).
-- Interactive re-solve path: a small router handling free-text requests like "not cooking tonight" across all
-  three servers at once — deliberately the *only* place that happens, and kept small on purpose, since a single
-  agent holding all ~48 tools is a documented failure mode (`swiggy-mcp-reference.md` §9 — the model loses track
-  of which server it's calling).
+- ✅ Daemon: Dead Man's Switch — a watched person quiet past their threshold gets a modest (< ₹300) item picked
+  from a real restaurant search, a real cart built, and a Tier B proposal created (needs the account holder's
+  confirmation, not the recipient's) — verified live end-to-end, no order ever placed.
+- 🟡 **Deferred, not built**: the interactive free-text router ("not cooking tonight" across all three servers
+  at once). It needs an actual input channel to route from, and none exists yet — Telegram is still
+  console-logging only, deferred per explicit direction to wire it up later. Revisit once Telegram or Phase 4's
+  web surface gives it something real to receive text from. Kept small and separate when it is built, since a
+  single agent holding all ~48 tools is a documented failure mode (`swiggy-mcp-reference.md` §9).
 
 **Exit criteria:** all three daemons run concurrently without interfering with each other's scheduler slots or
-DB state; the interactive router picks the correct vertical on a handful of hand-tested free-text prompts.
+DB state (✅ verified — distinct pg-boss queues/schedules, no conflicts on startup); the interactive router
+picks the correct vertical on a handful of hand-tested free-text prompts (⏸ deferred, see above).
 
 ---
 

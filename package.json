@@ -11,8 +11,11 @@
     "scheduler": "tsx src/scripts/start-scheduler.ts",
     "daemon:standing-plans": "tsx src/scripts/standing-plans-once.ts",
     "daemon:kitchen-entropy": "tsx src/scripts/kitchen-entropy-once.ts",
+    "daemon:dead-mans-switch": "tsx src/scripts/dead-mans-switch-once.ts",
     "add-commitment": "tsx src/scripts/add-commitment.ts",
     "record-purchase": "tsx src/scripts/record-purchase.ts",
+    "add-watched-person": "tsx src/scripts/add-watched-person.ts",
+    "check-in": "tsx src/scripts/check-in.ts",
     "test": "node --import tsx --test test/**/*.test.ts"
   },
   "dependencies": {

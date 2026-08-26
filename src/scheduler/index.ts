@@ -1,9 +1,11 @@
 import { PgBoss } from "pg-boss";
 import { runStandingPlans } from "../daemons/standing-plans.js";
 import { runKitchenEntropy } from "../daemons/kitchen-entropy.js";
+import { runDeadMansSwitch } from "../daemons/dead-mans-switch.js";
 
 const STANDING_PLANS_JOB = "standing-plans-tick";
 const KITCHEN_ENTROPY_JOB = "kitchen-entropy-tick";
+const DEAD_MANS_SWITCH_JOB = "dead-mans-switch-tick";
 
 /**
  * Real scheduler (pg-boss), replacing Phase 0's node-cron placeholder now that retry/
@@ -35,6 +37,17 @@ export async function startScheduler(): Promise<PgBoss> {
     await runKitchenEntropy(dryRun);
   });
 
-  console.log("[scheduler] started -- standing-plans-tick every 15 min, kitchen-entropy-tick hourly");
+  await boss.createQueue(DEAD_MANS_SWITCH_JOB);
+  // Quiet-detection is hours-granularity by design (quiet_threshold_hours) -- checking
+  // every 30 min is plenty of resolution without hammering search_restaurants/menu calls.
+  await boss.schedule(DEAD_MANS_SWITCH_JOB, "*/30 * * * *", null, { tz: "UTC" });
+  await boss.work(DEAD_MANS_SWITCH_JOB, async () => {
+    const dryRun = process.env.DAEMON_DRY_RUN !== "false";
+    await runDeadMansSwitch(dryRun);
+  });
+
+  console.log(
+    "[scheduler] started -- standing-plans every 15 min, kitchen-entropy hourly, dead-mans-switch every 30 min",
+  );
   return boss;
 }
