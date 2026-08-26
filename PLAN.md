@@ -65,7 +65,16 @@ job doesn't double-book (proves the idempotency key actually works, not just exi
 
 ---
 
-## Phase 2 — Abstraction Test (Kitchen Entropy / Instamart)
+## Phase 2 — Abstraction Test (Kitchen Entropy / Instamart) ✅ MVP achieved 2026-08-26
+
+Full Tier-B lifecycle proven live, with no real purchase ever made (explicit instruction): a real depleted
+pantry item was detected, a real product searched, a real cart built (₹123 with genuine Swiggy platform fees,
+not a naive item-price sum), a correctly `pending` proposal created, and the approval step itself proven —
+`approveProposal()` transitioned it `pending → executed` while `dry_run: true` correctly prevented any call to
+`checkout` (`"note": "no MCP call made"`). The ₹1000 cap enforcement lives in the action gate, proven by tests
+independent of any live call. Along the way, found and fixed a real bug in the MCP client itself (silently
+swallowed tool-level errors, not just this daemon's problem) — see `DECISIONS.md`'s 2026-08-26 entries for the
+full trail, including why Phase 1's interfaces genuinely didn't quite fit here as expected.
 
 **Goal:** stress-test Phase 1's abstractions with a genuinely harder daemon, and build the first real Tier-B
 (spends money) consent flow. Sequenced second deliberately — per the review doc, better to find the wrong
