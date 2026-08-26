@@ -6,6 +6,29 @@ fall behind silently.
 
 ---
 
+## 2026-08-26 — Phase 1 MVP: first real autonomous booking
+
+**Decision:** with explicit sign-off, flipped `dryRun` to `false` for one real execution against the
+already-verified commitment (2026-08-25's live-schema entry) rather than only ever trusting dry-run proof.
+
+**Why:** every earlier check (schema verification, the idempotency test, the restart-survival test) proved the
+*pipeline* was correct, but Phase 1's actual exit criterion is a real booking happening with zero human action
+at execution time — that can only be proven by really doing it once. Asked first because it creates a real,
+externally-visible artifact (a reservation under this account) rather than staying inside the dev environment.
+
+**What happened:** `book_table` against A Diner - Four Points by Sheraton (Vashi), 27 Aug 2026, 7:30 PM, 2
+guests, ₹0 (free "10% off" deal) — `status: COMPLETED`, Order ID `246727708188841`. Independently re-confirmed
+via a separate `get_booking_status` call, not just trusting `book_table`'s own response.
+
+**Important consequence for Phase 1+ generally:** the idempotency key used
+(`standing-plans:2:2026-08-27`) was deliberately the *same* key the real scheduler will generate when it
+naturally sees this commitment as due on Thursday (day_of_week match) — not a throwaway test key. That means
+when the schedule fires for real, `propose()` will find the existing `executed` row and correctly no-op instead
+of double-booking. Manually exercising the real path still has to respect the same safety mechanism a
+production firing would — that's not a one-off exception, it's the rule.
+
+---
+
 ## 2026-08-25 — Phase 1 spine built; Standing Plans blocked on live Dineout auth
 
 **Decision:** built the full Phase 1 spine (scheduler via pg-boss, action gate, minimal world model, the

@@ -29,7 +29,15 @@ gracefully.
 
 ---
 
-## Phase 1 — Spine + First Daemon (Standing Plans / Dineout)
+## Phase 1 — Spine + First Daemon (Standing Plans / Dineout) ✅ MVP achieved 2026-08-26
+
+A real free table was booked autonomously end-to-end: A Diner - Four Points by Sheraton, Vashi, 27 Aug 2026,
+7:30 PM, 2 guests, ₹0 — confirmed independently via `get_booking_status` (Order ID 246727708188841), not just a
+local echo. All three exit criteria met: real booking with no human action needed at execution, scheduler
+survives a hard-killed process restart (verified by actually killing and restarting it), idempotency proven
+both by direct test and by using the same key the real Thursday scheduler firing will generate — so when the
+schedule naturally fires on the commitment's real day, it resolves to the already-executed row instead of
+double-booking. See `DECISIONS.md`'s 2026-08-26 entry for the full trail.
 
 **Goal:** prove the full spine end-to-end on the cheapest, safest daemon there is — `book_table` structurally
 cannot spend money (free reservations only), so this daemon can run fully autonomous with zero financial risk
