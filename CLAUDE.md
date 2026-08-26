@@ -49,12 +49,20 @@ npm run auth -- food        # interactive PKCE login for one server (food | im |
 npm run crawl:once          # one manual crawl pass (Food domain) — verify before relying on the scheduler
 npm test                    # node --test, includes the simulation-harness fixture/fake-clock tests
 
-# Phase 1 (in progress)
+# Phase 1 ✅ MVP achieved 2026-08-26 -- see DECISIONS.md
 npm run auth -- dineout                 # needed once before the daemon can do anything real
-npm run add-commitment -- "<label>" <dayOfWeek 0-6> <HH:MM> <restaurantId> <addressId>
+npm run add-commitment -- "<label>" <dayOfWeek 0-6> <HH:MM> <restaurantId> <addressId> <latitude> <longitude>
 npm run daemon:standing-plans           # one manual run, dry-run by default (no MCP call executes)
 npm run daemon:standing-plans -- --live # same, but actually calls book_table if a free slot matches
-npm run scheduler                       # starts pg-boss, ticks standing-plans every 15 min (DAEMON_DRY_RUN=false to go live)
+
+# Phase 2 (in progress -- action gate cap + pantry model built, Kitchen Entropy blocked on Instamart auth)
+npm run auth -- im                          # needed once before Kitchen Entropy can do anything real
+npm run record-purchase -- <itemName> <quantity> <unit> <shelfLifeDays>
+npm run daemon:kitchen-entropy              # one manual run, dry-run by default
+npm run daemon:kitchen-entropy -- --live    # same, but actually calls checkout if something's below threshold
+
+npm run scheduler                       # starts pg-boss: standing-plans every 15 min, kitchen-entropy hourly
+                                         # (DAEMON_DRY_RUN=false env var to make either go live)
 ```
 
 **Postgres runs on host port 5434, not 5432.** This machine already has a native Postgres on 5432 and an
