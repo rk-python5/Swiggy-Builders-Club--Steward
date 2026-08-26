@@ -145,6 +145,17 @@ calls. Spot-checked so far:
   when a value drives a spend decision (an action-gate proposal's `amount_paise`), never fall back to a
   proxy/guessed value if the real field is missing — throw. A fallback chain here once silently produced ₹29 for
   a cart whose real total (delivery + taxes included) was ₹132. See `DECISIONS.md`'s 2026-08-26 entries.
+- 🆕 **This project has always called the production-shaped endpoint, not staging** — confirmed live against
+  `mcp.swiggy.com/builders/docs/operate/access/`, which states verbatim: "Staging access at
+  `mcp-staging.swiggy.com/{server}` — same shape as production, backed by seeded data (no real orders)."
+  `.mcp.json` and `src/oauth/flow.ts` have only ever pointed at `mcp.swiggy.com/{food,im,dineout}` — never
+  `mcp-staging.swiggy.com`. So the ₹1000 cap and stubbed `place_food_order` aren't a separate staging backend;
+  they're gating applied to this Builders Club account/OAuth client on the real production URL. **No sandbox
+  web UI, console, or dashboard exists anywhere in Swiggy's docs** — access is API/MCP-only; the closest thing
+  to a visual interface is a generic tool like MCP Inspector (see the OAuth workaround section above), not
+  anything Swiggy-branded. This also means a live-app cart not showing up via `get_food_cart` (see
+  `DECISIONS.md`'s 2026-08-26 cart-polling entry) probably isn't explained by environment separation — the
+  account-identity question is still open.
 
 For anything current/authoritative, prefer fetching live: `https://mcp.swiggy.com/builders/llms.txt` (index of
 every doc page, kept current by Swiggy) and `https://mcp.swiggy.com/builders/docs/reference/` — this repo's

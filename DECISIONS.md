@@ -6,6 +6,39 @@ fall behind silently.
 
 ---
 
+## 2026-08-26 — Confirmed: no sandbox UI exists; this project has always used the production MCP URL
+
+**Decision:** documented in `CLAUDE.md`'s tool-inventory spot-check list rather than left as a one-off finding.
+
+**What was asked:** whether a cart item added on the real Swiggy phone app would be visible to Steward via
+polling (`get_food_cart`/`get_cart`), and separately, whether there's a browser UI to access the Builders Club
+sandbox.
+
+**What was tested:** polled `get_food_cart` across all 10 saved addresses right after being told an item had
+just been added on the phone app — every call returned a clean, non-error "Cart is empty." `get_cart`
+(Instamart) errored on every address with "not serviceable," a known flaky Swiggy-side issue already documented
+elsewhere in this file, so inconclusive there. Food's result is not flaky — it's a real empty answer.
+
+**What that ruled out:** the working theory going in was "separate sandbox backend, so of course it's not
+there." Checked live against `mcp.swiggy.com/builders/docs/operate/access/`, which states verbatim: "Staging
+access at `mcp-staging.swiggy.com/{server}` — same shape as production, backed by seeded data (no real
+orders)." `.mcp.json` and `src/oauth/flow.ts` have only ever called `mcp.swiggy.com/{food,im,dineout}` — the
+production-shaped URL, never `mcp-staging.swiggy.com`. So the ₹1000 cap / stubbed `place_food_order` behavior
+is account-tier gating on the real endpoint, not a separate seeded-data environment. That undercuts the
+"different backend" explanation for the empty-cart result — the real explanation is still open (most likely:
+Builders Club provisions this OAuth login against a Swiggy user identity distinct from whatever account the
+phone app is signed into, even though both hit the same URL).
+
+**Also confirmed, same pass:** no sandbox web UI, console, or dashboard exists anywhere in Swiggy's own docs
+(`llms.txt` and the access-process page both checked live) — Builders Club access is API/MCP-only. The nearest
+thing to a visual interface is a generic tool like MCP Inspector, not anything Swiggy-branded.
+
+**Why this matters:** any future daemon idea premised on "poll the user's real app-side cart/activity
+autonomously" needs this resolved first — right now there's no confirmed shared state between this MCP session
+and the Swiggy consumer app the user actually carries.
+
+---
+
 ## 2026-08-26 — CLI onboarding replaced with real Settings pages; Swiggy-orange theme
 
 **Decision:** built `/settings/commitments`, `/settings/watched-people`, `/settings/pantry` as real forms backed
