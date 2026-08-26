@@ -69,6 +69,9 @@ npm run daemon:dead-mans-switch -- --live   # same, but actually calls place_foo
 
 npm run scheduler   # starts pg-boss: standing-plans/15min, kitchen-entropy/hourly, dead-mans-switch/30min
                      # (DAEMON_DRY_RUN=false env var to make any of them go live)
+
+# Phase 4 (core built -- Dashboard/Timeline/Approve on web; Settings/Architecture/mobile not yet built)
+npm run web          # Express + server-rendered HTML at http://localhost:3000 (WEB_PORT env var to change)
 ```
 
 **Postgres runs on host port 5434, not 5432.** This machine already has a native Postgres on 5432 and an

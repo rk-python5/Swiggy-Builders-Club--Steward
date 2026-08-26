@@ -1,0 +1,124 @@
+/* Visual language taken from the Claude Design mockups (Steward Web.html) --
+   IBM Plex Mono for metadata/labels, generous whitespace, colored left-border cards. */
+:root {
+  --bg-page: #f6f7f8;
+  --bg-card: #fff;
+  --border: #e2e4e8;
+  --text-primary: #1a1d23;
+  --text-secondary: #5a6270;
+  --text-tertiary: #8b93a1;
+  --accent-blue: #3457d5;
+  --tier-a-bg: #e3f5e9;
+  --tier-a-text: #1c7a43;
+  --tier-b-bg: #fdf0dc;
+  --tier-b-text: #a5690a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  background: var(--bg-page);
+  color: var(--text-primary);
+}
+
+.layout { display: flex; min-height: 100vh; }
+
+.sidebar {
+  width: 220px;
+  padding: 32px 24px;
+  flex-shrink: 0;
+}
+
+.sidebar h1 { font-size: 20px; margin: 0 0 2px; }
+.sidebar .powered-by { font-size: 12px; color: var(--text-tertiary); margin-bottom: 32px; }
+.sidebar .powered-by strong { color: var(--text-secondary); }
+
+.nav a {
+  display: block;
+  padding: 8px 12px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+.nav a.active { background: #e8edfc; color: var(--accent-blue); font-weight: 600; }
+
+.main { flex: 1; padding: 32px 40px; max-width: 900px; }
+
+.page-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 24px; }
+.page-header h2 { font-size: 24px; margin: 0; }
+.page-header .subtitle { color: var(--text-tertiary); font-size: 13px; }
+.page-header p.description { color: var(--text-secondary); margin: 4px 0 0; }
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: 8px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+}
+.card.tier-a { border-left-color: var(--tier-a-text); }
+.card.tier-b { border-left-color: var(--tier-b-text); }
+
+.card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.card-title { font-weight: 600; font-size: 15px; margin: 0 0 4px; }
+.card-desc { color: var(--text-secondary); font-size: 13px; margin: 0; }
+
+.pill {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.pill.tier-a { background: var(--tier-a-bg); color: var(--tier-a-text); }
+.pill.tier-b { background: var(--tier-b-bg); color: var(--tier-b-text); }
+
+.card-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.btn {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+}
+.btn-primary { background: var(--accent-blue); color: #fff; }
+.btn-secondary { background: #fff; border: 1px solid var(--border); color: var(--text-primary); }
+
+.timeline-item { border-bottom: 1px solid var(--border); padding: 16px 0; }
+.timeline-item:last-child { border-bottom: none; }
+.timeline-time {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
+.timeline-time .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; }
+.dot-green { background: #1c7a43; }
+.dot-amber { background: #a5690a; }
+.dot-gray { background: #b7bcc4; }
+.timeline-title { font-weight: 600; font-size: 14px; margin: 4px 0 2px; }
+.timeline-detail { color: var(--text-secondary); font-size: 13px; }
+
+.empty-state { color: var(--text-tertiary); font-size: 14px; padding: 40px 0; text-align: center; }
+
+form.inline { display: inline; }

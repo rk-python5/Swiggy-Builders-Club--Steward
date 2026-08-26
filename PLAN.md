@@ -128,7 +128,14 @@ picks the correct vertical on a handful of hand-tested free-text prompts (⏸ de
 
 ---
 
-## Phase 4 — Frontend: Surface and Demo
+## Phase 4 — Frontend: Surface and Demo 🟡 core built 2026-08-26, Settings/Architecture/mobile still open
+
+Dashboard, Timeline, and Approve are real, running, and verified end-to-end against live data — including the
+actual approve action submitted through the real web form, transitioning a real proposal and updating the UI
+correctly. Stack ended up Express + server-rendered HTML, not the React/Next.js port sketched below — see
+`DECISIONS.md`'s 2026-08-26 stack entry. Not yet built: the Settings screen (still the gap flagged below), the
+Architecture view, and the mobile layout — Dashboard/Timeline/Approve on web cover the core "see and act on
+what's happening" loop, which is what the exit criteria actually depend on.
 
 Without this phase the project stops at a backend + a Telegram bot — a working model, not a product. It's a
 real deliverable, not an afterthought; it's just sequenced last because the *build* needs real accumulated
@@ -168,16 +175,19 @@ bundles with no readable markup, not plain HTML):**
    support — `pending` / `approved` / `snoozed(until)` — not the simpler accept/reject binary planned there
    originally. Update Phase 2's action-gate schema when it's actually built.
 
-**Stack:** the mockups are a real working React prototype (in-browser Babel transform via CDN scripts) — not
-production-ready as-is (in-browser transpilation is a prototyping shortcut, not something to ship), but the
-component structure (`App` → `Sidebar` + `DaemonList` / `TimelineView` / `ArchitectureView`, plus an
-`ApprovalModal`) is a legitimate starting skeleton to port into a real bundled setup (Next.js, or Vite + React)
-reading the same Postgres tables directly — a good head start over designing the component boundaries from
-scratch.
+**Stack, as actually built (see `DECISIONS.md`):** Express + server-rendered HTML template literals
+(`src/web/`), not the React/Next.js port originally sketched here. v1's actual interactivity — listing data,
+handling approve/snooze form submissions — didn't justify introducing a second framework paradigm alongside the
+rest of the project's plain Node/TS + `pg` stack. The mockup's visual design (fonts, card layout, color
+language) is still the source of truth for what it looks like; only the implementation approach changed.
+Revisit React if the screens later need real client-side interactivity this can't cover.
 
 **Exit criteria:** the demo is "here's what's already been running," not a live click-through — the whole pitch
-depends on this distinction (review doc §7). The Approval flow and the Telegram bot both correctly reflect the
-same underlying state (approve/snooze in one, it updates in the other).
+depends on this distinction (review doc §7). ✅ Verified: real Dashboard/Timeline/Approve pages read live
+Postgres state, and a real approve action submitted through the actual web form correctly transitioned a real
+proposal (`pending → executed`) and updated what the UI shows. The Telegram side of "both reflect the same
+state" is still pending Telegram itself being wired up — the DB-backed mechanism it needs is already in place
+and proven, so wiring Telegram in later is additive, not a redesign.
 
 ---
 

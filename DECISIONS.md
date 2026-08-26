@@ -6,6 +6,44 @@ fall behind silently.
 
 ---
 
+## 2026-08-26 — Found and fixed test data silently polluting the real dev DB
+
+**Decision:** added `t.after()` cleanup to every integration test that writes to Postgres
+(`test/action-gate.test.ts`, `test/standing-plans.live.test.ts`), deleting exactly the row(s) that test created.
+
+**Why:** tests share the same `DATABASE_URL` as manual dev usage and now the Steward web UI. Building the
+Dashboard surfaced this concretely: it rendered a fake "Kitchen Entropy -- test restock -- ₹640" card, because
+`action-gate.test.ts` had been leaving a permanent `pending` proposal behind on every `npm test` run, with no
+cleanup and a random idempotency key so nothing ever deduped it. 22 fake proposal rows and 5 duplicate
+commitments (from `standing-plans.live.test.ts` doing the same thing) had silently accumulated over the
+session before the web UI made it visible. Deleted all of it, keeping only the real rows (including commitment
+id 2 and its real ₹0 booking, order ID 246727708188841 -- the live test creates a fresh commitment every run and
+cleanup only removes what that specific run created).
+
+**Consequence:** any new integration test that writes to this shared DB needs the same discipline. A dedicated
+test database would prevent this class of bug structurally rather than relying on remembering to clean up --
+worth reconsidering if this keeps happening.
+
+---
+
+## 2026-08-26 — Phase 4 stack: Express + server-rendered HTML, not Next.js/React
+
+**Decision:** the Steward frontend is a plain Express server rendering HTML via template literals (`src/web/`),
+not a React/Next.js port of the Claude Design mockup's component structure.
+
+**Why:** PLAN.md left this genuinely open ("decide for real once Phase 4 starts... revisit once it's clear how
+interactive the screens actually need to be"). v1's actual interactivity is listing data and handling
+approve/snooze form submissions — not complex client state. That's squarely in Express+plain-HTML territory,
+and it keeps the whole project on one consistent stack (Node/TS + `pg`, no ORM, no ORM-adjacent framework
+weight) rather than introducing React/Next.js as a second paradigm for one dashboard. The mockup's visual
+design (fonts, card layout, color language) is still the source of truth for what it looks like — just
+implemented as server-rendered markup instead of React components.
+
+**Consequence:** if the screens later need real client-side interactivity (live-updating without a refresh,
+drag interactions, etc.), that's the trigger to revisit React — not before.
+
+---
+
 ## 2026-08-26 — Phase 3: Dead Man's Switch redesigned around a real API constraint
 
 **Decision:** "watches a tracked person's ordering activity" (the review doc's original framing) is not

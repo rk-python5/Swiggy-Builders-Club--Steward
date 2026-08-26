@@ -16,15 +16,18 @@
     "record-purchase": "tsx src/scripts/record-purchase.ts",
     "add-watched-person": "tsx src/scripts/add-watched-person.ts",
     "check-in": "tsx src/scripts/check-in.ts",
+    "web": "tsx src/web/server.ts",
     "test": "node --import tsx --test test/**/*.test.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
+    "express": "^5.2.1",
     "node-cron": "^3.0.3",
     "pg": "^8.13.1",
     "pg-boss": "^12.28.0"
   },
   "devDependencies": {
+    "@types/express": "^5.0.0",
     "@types/node": "^22.10.2",
     "@types/node-cron": "^3.0.11",
     "@types/pg": "^8.11.10",
