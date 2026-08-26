@@ -53,8 +53,47 @@ test("tier B proposals stay pending until explicitly approved", async () => {
     summary: "test restock",
     toolName: "checkout",
     args: {},
+    amountPaise: 64_000, // ₹640, under the cap
     dryRun: true,
   });
 
   assert.equal(proposal.status, "pending", "tier B must not execute on its own");
+  assert.equal(proposal.amount_paise, 64_000);
+});
+
+test("the ₹1000 cap is enforced by the gate itself, before any MCP call is attempted", async () => {
+  const key = `test:${Date.now()}:${Math.random()}`;
+
+  const proposal = await propose({
+    idempotencyKey: key,
+    daemon: "kitchen_entropy",
+    server: "im",
+    tier: "B",
+    summary: "test restock over the cap",
+    toolName: "checkout",
+    args: {},
+    amountPaise: 150_000, // ₹1500, over the ₹1000 sandbox cap
+    dryRun: false, // proves the cap check happens BEFORE dryRun would even matter
+  });
+
+  assert.equal(proposal.status, "failed", "a proposal at/above ₹1000 must be rejected outright, not left pending");
+  assert.match(proposal.error ?? "", /1000/);
+});
+
+test("a proposal exactly at the ₹1000 cap is also rejected (cap is >=, not >)", async () => {
+  const key = `test:${Date.now()}:${Math.random()}`;
+
+  const proposal = await propose({
+    idempotencyKey: key,
+    daemon: "kitchen_entropy",
+    server: "im",
+    tier: "B",
+    summary: "test restock at exactly the cap",
+    toolName: "checkout",
+    args: {},
+    amountPaise: 100_000, // exactly ₹1000
+    dryRun: true,
+  });
+
+  assert.equal(proposal.status, "failed");
 });

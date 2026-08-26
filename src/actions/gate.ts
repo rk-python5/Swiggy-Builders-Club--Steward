@@ -4,6 +4,11 @@ import type { SwiggyServer } from "../db/tokens.js";
 
 export type Tier = "A" | "B";
 
+/** The Builders Club sandbox's real cap -- place_food_order (and, by the same beta-scope
+ * reasoning, checkout) is rejected at or above ₹1000. Enforced here, once, for every
+ * server/daemon that spends money -- not re-implemented per daemon. */
+const ORDER_CAP_PAISE = 100_000;
+
 export interface ProposeArgs {
   idempotencyKey: string;
   daemon: string;
@@ -13,6 +18,12 @@ export interface ProposeArgs {
   toolName: string;
   args: Record<string, unknown>;
   dryRun?: boolean;
+  /** Cart/order total, if this proposal spends money -- checked against ORDER_CAP_PAISE
+   * before anything executes. Omit for proposals that don't spend (e.g. a free booking). */
+  amountPaise?: number;
+  /** How confident the daemon is in this proposal (0-1) -- logged, not acted on yet. Feeds
+   * the training data DECISIONS.md's ML section says to start collecting from Phase 2 on. */
+  confidence?: number;
 }
 
 export interface ProposalRow {
@@ -25,6 +36,8 @@ export interface ProposalRow {
   summary: string;
   payload: { toolName: string; args: Record<string, unknown> };
   dry_run: boolean;
+  amount_paise: number | null;
+  confidence: number | null;
   result: unknown;
   error: string | null;
 }
@@ -47,8 +60,8 @@ export async function propose(args: ProposeArgs): Promise<ProposalRow> {
   const dryRun = args.dryRun ?? false;
 
   const { rows } = await pool.query<ProposalRow>(
-    `INSERT INTO proposals (idempotency_key, daemon, server, tier, summary, payload, dry_run)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO proposals (idempotency_key, daemon, server, tier, summary, payload, dry_run, amount_paise, confidence)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      ON CONFLICT (idempotency_key) DO UPDATE SET idempotency_key = proposals.idempotency_key
      RETURNING *`,
     [
@@ -59,6 +72,8 @@ export async function propose(args: ProposeArgs): Promise<ProposalRow> {
       args.summary,
       JSON.stringify({ toolName: args.toolName, args: args.args }),
       dryRun,
+      args.amountPaise ?? null,
+      args.confidence ?? null,
     ],
   );
   const proposal = rows[0];
@@ -66,6 +81,17 @@ export async function propose(args: ProposeArgs): Promise<ProposalRow> {
   // Already resolved by an earlier attempt with the same key -- don't re-execute.
   if (proposal.status !== "pending") {
     return proposal;
+  }
+
+  if (proposal.amount_paise !== null && proposal.amount_paise >= ORDER_CAP_PAISE) {
+    const { rows: failedRows } = await pool.query<ProposalRow>(
+      `UPDATE proposals SET status = 'failed', error = $2, resolved_at = now() WHERE id = $1 RETURNING *`,
+      [
+        proposal.id,
+        `Amount ₹${(proposal.amount_paise / 100).toFixed(2)} is at or above the Builders Club sandbox cap of ₹1000 -- rejected before any MCP call was made.`,
+      ],
+    );
+    return failedRows[0];
   }
 
   if (args.tier === "B") {

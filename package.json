@@ -10,7 +10,9 @@
     "crawl:once": "tsx src/scripts/crawl-once.ts",
     "scheduler": "tsx src/scripts/start-scheduler.ts",
     "daemon:standing-plans": "tsx src/scripts/standing-plans-once.ts",
+    "daemon:kitchen-entropy": "tsx src/scripts/kitchen-entropy-once.ts",
     "add-commitment": "tsx src/scripts/add-commitment.ts",
+    "record-purchase": "tsx src/scripts/record-purchase.ts",
     "test": "node --import tsx --test test/**/*.test.ts"
   },
   "dependencies": {
