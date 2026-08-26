@@ -1,0 +1,2840 @@
+{
+  "info": {
+    "_postman_id": "b3f1a1e0-0000-4000-8000-000000000000",
+    "name": "Steward — Household Daemons",
+    "description": "Everything testable in this project: the three Swiggy Builders Club MCP servers (Food/Instamart/Dineout) via raw JSON-RPC, the manual PKCE OAuth flow that authenticates against them, the Steward web app's own routes, and the Telegram quick-add bot.\n\nImport the companion Steward.postman_environment.json and select it before running anything -- request URLs/tokens are all environment variables, nothing is hardcoded.\n\nGenerated from this repo's own documented + live-verified findings (CLAUDE.md, DECISIONS.md, swiggy-mcp-reference.md) as of 2026-08-27 -- re-run tools/list before trusting exact tool counts, they've been wrong before (see the Instamart/Dineout folder descriptions for the two unresolved discrepancies).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Swiggy MCP",
+      "id": "b3f1a1e0-0000-4000-8000-000000000063",
+      "description": "The three Builders Club MCP servers, plus the manual OAuth flow that authenticates against them. Confirmed live: this project has always called the production-shaped mcp.swiggy.com URLs, never mcp-staging.swiggy.com -- see CLAUDE.md's 2026-08-26 entry.",
+      "item": [
+        {
+          "name": "OAuth (manual PKCE)",
+          "id": "b3f1a1e0-0000-4000-8000-000000000006",
+          "description": "Swiggy's authorization-server metadata has a known issuer/location mismatch (RFC 8414 §3.3) that breaks spec-strict discovery -- this is why the whole flow is manual here instead of an SDK's OAuthClientProvider. Generate a code_verifier/code_challenge (S256) yourself before running these (Postman doesn't do PKCE generation natively) and set oauth_code_verifier/oauth_code_challenge in the environment.",
+          "item": [
+            {
+              "name": "1. Register dynamic client",
+              "id": "b3f1a1e0-0000-4000-8000-000000000001",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_auth_base}}/register",
+                  "host": [
+                    "{{swiggy_auth_base}}/register"
+                  ]
+                },
+                "description": "Returns a client_id. Copy it into the oauth_client_id environment variable.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"redirect_uris\": [\n    \"{{oauth_redirect_uri}}\"\n  ],\n  \"token_endpoint_auth_method\": \"none\",\n  \"grant_types\": [\n    \"authorization_code\"\n  ],\n  \"response_types\": [\n    \"code\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "2. Authorize (open in a real browser, not Postman)",
+              "id": "b3f1a1e0-0000-4000-8000-000000000002",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{swiggy_auth_base}}/authorize?response_type=code&client_id={{oauth_client_id}}&redirect_uri={{oauth_redirect_uri}}&code_challenge={{oauth_code_challenge}}&code_challenge_method=S256",
+                  "host": [
+                    "{{swiggy_auth_base}}/authorize"
+                  ],
+                  "query": [
+                    {
+                      "key": "response_type",
+                      "value": "code"
+                    },
+                    {
+                      "key": "client_id",
+                      "value": "{{oauth_client_id}}"
+                    },
+                    {
+                      "key": "redirect_uri",
+                      "value": "{{oauth_redirect_uri}}"
+                    },
+                    {
+                      "key": "code_challenge",
+                      "value": "{{oauth_code_challenge}}"
+                    },
+                    {
+                      "key": "code_challenge_method",
+                      "value": "S256"
+                    }
+                  ]
+                },
+                "description": "Postman can't complete phone+OTP login -- open this URL in an actual browser tab. The redirect will fail to load (nothing's listening on oauth_redirect_uri) -- copy the `code` query param from the resulting URL into oauth_authorization_code."
+              },
+              "response": []
+            },
+            {
+              "name": "3. Exchange code for token",
+              "id": "b3f1a1e0-0000-4000-8000-000000000003",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/x-www-form-urlencoded"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_auth_base}}/token",
+                  "host": [
+                    "{{swiggy_auth_base}}/token"
+                  ]
+                },
+                "description": "Returns a Bearer access token, 5-day expiry. Confirmed this session: no refresh_token is issued despite the auth server's metadata listing refresh_token as a supported grant type -- see DECISIONS.md 2026-08-24. Copy the access_token into swiggy_food_token / swiggy_im_token / swiggy_dineout_token as needed (same token works across all three servers).",
+                "body": {
+                  "mode": "urlencoded",
+                  "urlencoded": [
+                    {
+                      "key": "grant_type",
+                      "value": "authorization_code",
+                      "type": "text"
+                    },
+                    {
+                      "key": "code",
+                      "value": "{{oauth_authorization_code}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "redirect_uri",
+                      "value": "{{oauth_redirect_uri}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "client_id",
+                      "value": "{{oauth_client_id}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "code_verifier",
+                      "value": "{{oauth_code_verifier}}",
+                      "type": "text"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "[Known bug] Protected-resource metadata",
+              "id": "b3f1a1e0-0000-4000-8000-000000000004",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{swiggy_food_base}}/.well-known/oauth-protected-resource",
+                  "host": [
+                    "{{swiggy_food_base}}/.well-known/oauth-protected-resource"
+                  ]
+                },
+                "description": "Declares its authorization_servers as https://mcp.swiggy.com/auth."
+              },
+              "response": []
+            },
+            {
+              "name": "[Known bug] Authorization-server metadata (served at root, not /auth)",
+              "id": "b3f1a1e0-0000-4000-8000-000000000005",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "https://mcp.swiggy.com/.well-known/oauth-authorization-server",
+                  "host": [
+                    "https://mcp.swiggy.com/.well-known/oauth-authorization-server"
+                  ]
+                },
+                "description": "This is the actual location the metadata is served from, but its own `issuer` field claims https://mcp.swiggy.com/auth -- a location/issuer mismatch per RFC 8414 §3.3. This is why spec-strict clients (MCP Inspector) refuse to connect with \"Issuer mismatch\". Worth re-checking periodically in case Swiggy fixes it."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Food server (20 tools)",
+          "id": "b3f1a1e0-0000-4000-8000-000000000028",
+          "description": "https://mcp.swiggy.com/food. Tool count confirmed live at 20 (the reference doc claims 18 and omits create_address/delete_address -- CLAUDE.md's tool-inventory section). Response envelope shapes vary per tool -- get_food_cart's real total is nested at structuredContent.data.pricing.to_pay, deeper than any other tool; see CLAUDE.md before assuming a shape.",
+          "item": [
+            {
+              "name": "tools/list",
+              "id": "b3f1a1e0-0000-4000-8000-000000000007",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_food_base}}",
+                  "host": [
+                    "{{swiggy_food_base}}"
+                  ]
+                },
+                "description": "Always run this first against a fresh token -- tool inventories in the docs have been wrong before (see CLAUDE.md's spot-check log). This is the authoritative source, not the reference doc.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/list\",\n  \"params\": {}\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_food_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "search_restaurants",
+              "id": "b3f1a1e0-0000-4000-8000-000000000008",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_food_base}}",
+                  "host": [
+                    "{{swiggy_food_base}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"search_restaurants\",\n    \"arguments\": {\n      \"addressId\": \"{{address_id}}\",\n      \"query\": \"biryani\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_food_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_restaurant_menu",
+              "id": "b3f1a1e0-0000-4000-8000-000000000009",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_food_base}}",
+                  "host": [
+                    "{{swiggy_food_base}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"get_restaurant_menu\",\n    \"arguments\": {\n      \"restaurantId\": \"{{restaurant_id}}\",\n      \"page\": 1,\n      \"pageSize\": 5\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_food_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "search_menu",
+              "id": "b3f1a1e0-0000-4000-8000-000000000010",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_food_base}}",
+                  "host": [
+                    "{{swiggy_food_base}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"search_menu\",\n    \"arguments\": {\n      \"restaurantId\": \"{{restaurant_id}}\",\n      \"query\": \"paneer\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_food_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "update_food_cart",
+              "id": "b3f1a1e0-0000-4000-8000-000000000011",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_food_base}}",
+                  "host": [
+                    "{{swiggy_food_base}}"
+                  ]
+                },
+                "description": "Note the field names: cartItems (not items), menu_item_id (not itemId) -- confirmed live, differs from the reference doc's guess.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"update_food_cart\",\n    \"arguments\": {\n      \"addressId\": \"{{address_id}}\",\n      \"restaurantId\": \"{{restaurant_id}}\",\n      \"cartItems\": [\n        {\n          \"menu_item_id\": \"{{menu_item_id}}\",\n          \"quantity\": 1\n        }\n      ]\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_food_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_food_cart",
+              "id": "b3f1a1e0-0000-4000-8000-000000000012",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_food_base}}",
+                  "host": [
+                    "{{swiggy_food_base}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"get_food_cart\",\n    \"arguments\": {\n      \"addressId\": \"{{address_id}}\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_food_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "flush_food_cart",
+              "id": "b3f1a1e0-0000-4000-8000-000000000013",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_food_base}}",
+                  "host": [
+                    "{{swiggy_food_base}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"flush_food_cart\",\n    \"arguments\": {}\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_food_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "fetch_food_coupons",
+              "id": "b3f1a1e0-0000-4000-8000-000000000014",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_food_base}}",
+                  "host": [
+                    "{{swiggy_food_base}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"fetch_food_coupons\",\n    \"arguments\": {\n      \"addressId\": \"{{address_id}}\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_food_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "apply_food_coupon",
+              "id": "b3f1a1e0-0000-4000-8000-000000000015",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_food_base}}",
+                  "host": [
+                    "{{swiggy_food_base}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"apply_food_coupon\",\n    \"arguments\": {\n      \"addressId\": \"{{address_id}}\",\n      \"couponCode\": \"WELCOME50\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_food_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_payment_options",
+              "id": "b3f1a1e0-0000-4000-8000-000000000016",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_food_base}}",
+                  "host": [
+                    "{{swiggy_food_base}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"get_payment_options\",\n    \"arguments\": {\n      \"addressId\": \"{{address_id}}\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_food_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "check_payment_status",
+              "id": "b3f1a1e0-0000-4000-8000-000000000017",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_food_base}}",
+                  "host": [
+                    "{{swiggy_food_base}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"check_payment_status\",\n    \"arguments\": {\n      \"orderId\": \"{{order_id}}\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_food_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "confirm_order",
+              "id": "b3f1a1e0-0000-4000-8000-000000000018",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_food_base}}",
+                  "host": [
+                    "{{swiggy_food_base}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"confirm_order\",\n    \"arguments\": {\n      \"orderId\": \"{{order_id}}\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_food_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "place_food_order",
+              "id": "b3f1a1e0-0000-4000-8000-000000000019",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_food_base}}",
+                  "host": [
+                    "{{swiggy_food_base}}"
+                  ]
+                },
+                "description": "MUTATING -- places a real order (sandbox: stubbed, ₹1000 cap, no real kitchen dispatch per CLAUDE.md). Real schema is much larger -- see swiggy-mcp-reference.md §6 for the full template before using this for anything but a smoke test. Not idempotent -- verify via get_food_orders on ambiguous response, don't retry blindly.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"place_food_order\",\n    \"arguments\": {\n      \"addressId\": \"{{address_id}}\",\n      \"paymentMethod\": \"COD\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_food_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "track_food_order",
+              "id": "b3f1a1e0-0000-4000-8000-000000000020",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_food_base}}",
+                  "host": [
+                    "{{swiggy_food_base}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"track_food_order\",\n    \"arguments\": {\n      \"orderId\": \"{{order_id}}\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_food_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_food_delivery_status",
+              "id": "b3f1a1e0-0000-4000-8000-000000000021",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_food_base}}",
+                  "host": [
+                    "{{swiggy_food_base}}"
+                  ]
+                },
+                "description": "Widget-only poller -- returns epoch timestamps/cadence hints, not readable text. Use track_food_order for anything conversational.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"get_food_delivery_status\",\n    \"arguments\": {\n      \"orderId\": \"{{order_id}}\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_food_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_food_orders",
+              "id": "b3f1a1e0-0000-4000-8000-000000000022",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_food_base}}",
+                  "host": [
+                    "{{swiggy_food_base}}"
+                  ]
+                },
+                "description": "Confirmed live this session: returns real delivered-order history, not just active orders as the reference doc's one-line description implies.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"get_food_orders\",\n    \"arguments\": {\n      \"addressId\": \"{{address_id}}\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_food_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_food_order_details",
+              "id": "b3f1a1e0-0000-4000-8000-000000000023",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_food_base}}",
+                  "host": [
+                    "{{swiggy_food_base}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"get_food_order_details\",\n    \"arguments\": {\n      \"orderId\": \"{{order_id}}\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_food_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_addresses",
+              "id": "b3f1a1e0-0000-4000-8000-000000000024",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_food_base}}",
+                  "host": [
+                    "{{swiggy_food_base}}"
+                  ]
+                },
+                "description": "Paginates -- structuredContent.pagination.{page,pageSize,total,totalPages,hasMore}. Shared with Instamart; Dineout uses a separate get_saved_locations.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"get_addresses\",\n    \"arguments\": {\n      \"page\": 1,\n      \"pageSize\": 10\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_food_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "create_address",
+              "id": "b3f1a1e0-0000-4000-8000-000000000025",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_food_base}}",
+                  "host": [
+                    "{{swiggy_food_base}}"
+                  ]
+                },
+                "description": "Not in the reference doc's Food table at all -- confirmed live to exist (CLAUDE.md's tool-inventory spot-check).",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"create_address\",\n    \"arguments\": {\n      \"latitude\": \"{{latitude}}\",\n      \"longitude\": \"{{longitude}}\",\n      \"addressLine\": \"Example Street, Example Area\",\n      \"addressTag\": \"Test\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_food_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "delete_address",
+              "id": "b3f1a1e0-0000-4000-8000-000000000026",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_food_base}}",
+                  "host": [
+                    "{{swiggy_food_base}}"
+                  ]
+                },
+                "description": "DESTRUCTIVE -- deletes a real saved address. Double-check address_id before running.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"delete_address\",\n    \"arguments\": {\n      \"addressId\": \"{{address_id}}\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_food_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "report_error",
+              "id": "b3f1a1e0-0000-4000-8000-000000000027",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_food_base}}",
+                  "host": [
+                    "{{swiggy_food_base}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"report_error\",\n    \"arguments\": {\n      \"description\": \"Test error report sent from Postman\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_food_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Instamart server (doc: 19 tools -- live count was 16, unresolved)",
+          "id": "b3f1a1e0-0000-4000-8000-000000000049",
+          "description": "https://mcp.swiggy.com/im. The reference doc lists 19 tools; a live tools/list call earlier this session returned 16 and the full list wasn't captured at the time -- treat every tool below as unconfirmed until you re-run tools/list yourself. list_coupons/apply_coupon are GATED (whitelisted accounts only per the doc).",
+          "item": [
+            {
+              "name": "tools/list",
+              "id": "b3f1a1e0-0000-4000-8000-000000000029",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_im_base}}",
+                  "host": [
+                    "{{swiggy_im_base}}"
+                  ]
+                },
+                "description": "Always run this first against a fresh token -- tool inventories in the docs have been wrong before (see CLAUDE.md's spot-check log). This is the authoritative source, not the reference doc.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/list\",\n  \"params\": {}\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_im_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "search_products",
+              "id": "b3f1a1e0-0000-4000-8000-000000000030",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_im_base}}",
+                  "host": [
+                    "{{swiggy_im_base}}"
+                  ]
+                },
+                "description": "Returns products WITH variants (pack sizes/quantities) -- you need the spinId+skuId from a variation before update_cart.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"search_products\",\n    \"arguments\": {\n      \"addressId\": \"{{address_id}}\",\n      \"query\": \"milk\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_im_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "your_go_to_items",
+              "id": "b3f1a1e0-0000-4000-8000-000000000031",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_im_base}}",
+                  "host": [
+                    "{{swiggy_im_base}}"
+                  ]
+                },
+                "description": "Confirmed live this session: real, populated data -- frequently/recently ordered items. Closest thing to a pantry signal.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"your_go_to_items\",\n    \"arguments\": {\n      \"addressId\": \"{{address_id}}\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_im_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_addresses",
+              "id": "b3f1a1e0-0000-4000-8000-000000000032",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_im_base}}",
+                  "host": [
+                    "{{swiggy_im_base}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"get_addresses\",\n    \"arguments\": {\n      \"page\": 1,\n      \"pageSize\": 10\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_im_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "create_address",
+              "id": "b3f1a1e0-0000-4000-8000-000000000033",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_im_base}}",
+                  "host": [
+                    "{{swiggy_im_base}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"create_address\",\n    \"arguments\": {\n      \"latitude\": \"{{latitude}}\",\n      \"longitude\": \"{{longitude}}\",\n      \"addressLine\": \"Example Street, Example Area\",\n      \"addressTag\": \"Test\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_im_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "delete_address",
+              "id": "b3f1a1e0-0000-4000-8000-000000000034",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_im_base}}",
+                  "host": [
+                    "{{swiggy_im_base}}"
+                  ]
+                },
+                "description": "DESTRUCTIVE.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"delete_address\",\n    \"arguments\": {\n      \"addressId\": \"{{address_id}}\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_im_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "update_cart",
+              "id": "b3f1a1e0-0000-4000-8000-000000000035",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_im_base}}",
+                  "host": [
+                    "{{swiggy_im_base}}"
+                  ]
+                },
+                "description": "REPLACES the entire cart with the items given -- not an append. Read-merge-write if you want to add to an existing cart.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"update_cart\",\n    \"arguments\": {\n      \"addressId\": \"{{address_id}}\",\n      \"items\": [\n        {\n          \"spinId\": \"{{spin_id}}\",\n          \"skuId\": \"{{sku_id}}\",\n          \"quantity\": 1\n        }\n      ]\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_im_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_cart",
+              "id": "b3f1a1e0-0000-4000-8000-000000000036",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_im_base}}",
+                  "host": [
+                    "{{swiggy_im_base}}"
+                  ]
+                },
+                "description": "Real total lives at structuredContent.data.pricing / cartTotalAmount -- check the actual shape, don't assume.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"get_cart\",\n    \"arguments\": {\n      \"addressId\": \"{{address_id}}\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_im_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "clear_cart",
+              "id": "b3f1a1e0-0000-4000-8000-000000000037",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_im_base}}",
+                  "host": [
+                    "{{swiggy_im_base}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"clear_cart\",\n    \"arguments\": {\n      \"addressId\": \"{{address_id}}\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_im_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "list_coupons",
+              "id": "b3f1a1e0-0000-4000-8000-000000000038",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_im_base}}",
+                  "host": [
+                    "{{swiggy_im_base}}"
+                  ]
+                },
+                "description": "GATED -- whitelisted accounts only.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"list_coupons\",\n    \"arguments\": {\n      \"addressId\": \"{{address_id}}\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_im_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "apply_coupon",
+              "id": "b3f1a1e0-0000-4000-8000-000000000039",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_im_base}}",
+                  "host": [
+                    "{{swiggy_im_base}}"
+                  ]
+                },
+                "description": "GATED -- whitelisted accounts only.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"apply_coupon\",\n    \"arguments\": {\n      \"addressId\": \"{{address_id}}\",\n      \"couponCode\": \"WELCOME50\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_im_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_payment_options",
+              "id": "b3f1a1e0-0000-4000-8000-000000000040",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_im_base}}",
+                  "host": [
+                    "{{swiggy_im_base}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"get_payment_options\",\n    \"arguments\": {\n      \"addressId\": \"{{address_id}}\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_im_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "check_payment_status",
+              "id": "b3f1a1e0-0000-4000-8000-000000000041",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_im_base}}",
+                  "host": [
+                    "{{swiggy_im_base}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"check_payment_status\",\n    \"arguments\": {\n      \"orderId\": \"{{order_id}}\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_im_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "confirm_order",
+              "id": "b3f1a1e0-0000-4000-8000-000000000042",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_im_base}}",
+                  "host": [
+                    "{{swiggy_im_base}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"confirm_order\",\n    \"arguments\": {\n      \"orderId\": \"{{order_id}}\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_im_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "checkout",
+              "id": "b3f1a1e0-0000-4000-8000-000000000043",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_im_base}}",
+                  "host": [
+                    "{{swiggy_im_base}}"
+                  ]
+                },
+                "description": "MUTATING -- places AND confirms the grocery order in one call. ₹1000 sandbox cap. Never fall back to a proxy/guessed cart total when this drives a spend decision -- throw instead (see CLAUDE.md's 2026-08-26 hard-rule entry, born from a real ₹0-vs-real-total near miss).",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"checkout\",\n    \"arguments\": {\n      \"addressId\": \"{{address_id}}\",\n      \"paymentMethod\": \"COD\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_im_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "track_order",
+              "id": "b3f1a1e0-0000-4000-8000-000000000044",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_im_base}}",
+                  "host": [
+                    "{{swiggy_im_base}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"track_order\",\n    \"arguments\": {\n      \"orderId\": \"{{order_id}}\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_im_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_delivery_status",
+              "id": "b3f1a1e0-0000-4000-8000-000000000045",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_im_base}}",
+                  "host": [
+                    "{{swiggy_im_base}}"
+                  ]
+                },
+                "description": "Widget-only poller, same caveat as Food's get_food_delivery_status.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"get_delivery_status\",\n    \"arguments\": {\n      \"orderId\": \"{{order_id}}\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_im_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_orders",
+              "id": "b3f1a1e0-0000-4000-8000-000000000046",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_im_base}}",
+                  "host": [
+                    "{{swiggy_im_base}}"
+                  ]
+                },
+                "description": "Confirmed live this session: works with NO required args, defaults to a 15-day lookback window. Returns real order history + preferences.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"get_orders\",\n    \"arguments\": {}\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_im_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_order_details",
+              "id": "b3f1a1e0-0000-4000-8000-000000000047",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_im_base}}",
+                  "host": [
+                    "{{swiggy_im_base}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"get_order_details\",\n    \"arguments\": {\n      \"orderId\": \"{{order_id}}\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_im_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "report_error",
+              "id": "b3f1a1e0-0000-4000-8000-000000000048",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_im_base}}",
+                  "host": [
+                    "{{swiggy_im_base}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"report_error\",\n    \"arguments\": {\n      \"description\": \"Test error report sent from Postman\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_im_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Dineout server (doc: 11 tools -- only 10 documented, gap unresolved)",
+          "id": "b3f1a1e0-0000-4000-8000-000000000062",
+          "description": "https://mcp.swiggy.com/dineout. FREE reservations only (isFree=true, bookingPrice=0) -- book_table rejects paid deals. Address ID space is NOT separate from Food/Instamart despite the reference doc's claim -- get_saved_locations returned the identical home-address ID as Food's get_addresses in this session's testing (see DECISIONS.md 2026-08-25).",
+          "item": [
+            {
+              "name": "tools/list",
+              "id": "b3f1a1e0-0000-4000-8000-000000000050",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_dineout_base}}",
+                  "host": [
+                    "{{swiggy_dineout_base}}"
+                  ]
+                },
+                "description": "Always run this first against a fresh token -- tool inventories in the docs have been wrong before (see CLAUDE.md's spot-check log). This is the authoritative source, not the reference doc.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/list\",\n  \"params\": {}\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_dineout_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_saved_locations",
+              "id": "b3f1a1e0-0000-4000-8000-000000000051",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_dineout_base}}",
+                  "host": [
+                    "{{swiggy_dineout_base}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"get_saved_locations\",\n    \"arguments\": {}\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_dineout_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "search_restaurants_dineout",
+              "id": "b3f1a1e0-0000-4000-8000-000000000052",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_dineout_base}}",
+                  "host": [
+                    "{{swiggy_dineout_base}}"
+                  ]
+                },
+                "description": "Confirmed live this session: accepts addressId OR raw latitude/longitude directly -- does not geocode area names itself. structuredContent is empty; real data is text-only in content[0].text (numbered list + \"Search coordinates: latitude=..., longitude=...\").",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"search_restaurants_dineout\",\n    \"arguments\": {\n      \"query\": \"Italian\",\n      \"latitude\": \"{{latitude}}\",\n      \"longitude\": \"{{longitude}}\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_dineout_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_restaurant_details",
+              "id": "b3f1a1e0-0000-4000-8000-000000000053",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_dineout_base}}",
+                  "host": [
+                    "{{swiggy_dineout_base}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"get_restaurant_details\",\n    \"arguments\": {\n      \"restaurantId\": \"{{restaurant_id}}\",\n      \"latitude\": \"{{latitude}}\",\n      \"longitude\": \"{{longitude}}\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_dineout_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_available_slots",
+              "id": "b3f1a1e0-0000-4000-8000-000000000054",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_dineout_base}}",
+                  "host": [
+                    "{{swiggy_dineout_base}}"
+                  ]
+                },
+                "description": "Looks up to 7 days ahead. Real slot data lives under _meta.slots, NOT structuredContent -- confirmed live, a fourth distinct envelope shape. Takes latitude/longitude directly, not addressId.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"get_available_slots\",\n    \"arguments\": {\n      \"restaurantId\": \"{{restaurant_id}}\",\n      \"latitude\": \"{{latitude}}\",\n      \"longitude\": \"{{longitude}}\",\n      \"date\": \"2026-08-28\",\n      \"partySize\": 2\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_dineout_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "create_cart",
+              "id": "b3f1a1e0-0000-4000-8000-000000000055",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_dineout_base}}",
+                  "host": [
+                    "{{swiggy_dineout_base}}"
+                  ]
+                },
+                "description": "Validates billToPay=0 and skipPayment for free bookings.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"create_cart\",\n    \"arguments\": {\n      \"restaurantId\": \"{{restaurant_id}}\",\n      \"type\": \"DEAL_TICKET_PURCHASE\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_dineout_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "book_table",
+              "id": "b3f1a1e0-0000-4000-8000-000000000056",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_dineout_base}}",
+                  "host": [
+                    "{{swiggy_dineout_base}}"
+                  ]
+                },
+                "description": "MUTATING -- books a real (free) table. See DECISIONS.md's 2026-08-25 Dineout-verification entry for the full corrected schema before using this for more than a smoke test.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"book_table\",\n    \"arguments\": {\n      \"restaurantId\": \"{{restaurant_id}}\",\n      \"latitude\": \"{{latitude}}\",\n      \"longitude\": \"{{longitude}}\",\n      \"partySize\": 2\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_dineout_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_payment_options",
+              "id": "b3f1a1e0-0000-4000-8000-000000000057",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_dineout_base}}",
+                  "host": [
+                    "{{swiggy_dineout_base}}"
+                  ]
+                },
+                "description": "Paid-reservation UPI stage -- N/A for free bookings.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"get_payment_options\",\n    \"arguments\": {}\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_dineout_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "check_payment_status",
+              "id": "b3f1a1e0-0000-4000-8000-000000000058",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_dineout_base}}",
+                  "host": [
+                    "{{swiggy_dineout_base}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"check_payment_status\",\n    \"arguments\": {\n      \"orderId\": \"{{order_id}}\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_dineout_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "confirm_order",
+              "id": "b3f1a1e0-0000-4000-8000-000000000059",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_dineout_base}}",
+                  "host": [
+                    "{{swiggy_dineout_base}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"confirm_order\",\n    \"arguments\": {\n      \"orderId\": \"{{order_id}}\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_dineout_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_booking_status",
+              "id": "b3f1a1e0-0000-4000-8000-000000000060",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_dineout_base}}",
+                  "host": [
+                    "{{swiggy_dineout_base}}"
+                  ]
+                },
+                "description": "Restaurant name, date, time, guests, deal title, status.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"get_booking_status\",\n    \"arguments\": {\n      \"bookingId\": \"{{booking_id}}\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_dineout_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "report_error",
+              "id": "b3f1a1e0-0000-4000-8000-000000000061",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{swiggy_dineout_base}}",
+                  "host": [
+                    "{{swiggy_dineout_base}}"
+                  ]
+                },
+                "description": "UNCONFIRMED for Dineout specifically -- present on both Food and Instamart per the doc, but the Dineout table's 8 documented rows didn't show it. Run tools/list to check before relying on this.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"report_error\",\n    \"arguments\": {\n      \"description\": \"Test error report sent from Postman\"\n    }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{swiggy_dineout_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Steward web app",
+      "id": "b3f1a1e0-0000-4000-8000-000000000085",
+      "description": "Requires `npm run web` running locally (default http://localhost:3000). All mutating routes here go through the real Action Gate / world-model code -- nothing here is a mock.",
+      "item": [
+        {
+          "name": "Dashboard & actions",
+          "id": "b3f1a1e0-0000-4000-8000-000000000069",
+          "description": "Server-rendered HTML, no JSON API -- these return full pages. Useful for smoke-testing the app is up and routes don't 500.",
+          "item": [
+            {
+              "name": "GET Dashboard",
+              "id": "b3f1a1e0-0000-4000-8000-000000000064",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{steward_base}}/",
+                  "host": [
+                    "{{steward_base}}/"
+                  ]
+                },
+                "description": ""
+              },
+              "response": []
+            },
+            {
+              "name": "GET Timeline",
+              "id": "b3f1a1e0-0000-4000-8000-000000000065",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{steward_base}}/timeline",
+                  "host": [
+                    "{{steward_base}}/timeline"
+                  ]
+                },
+                "description": ""
+              },
+              "response": []
+            },
+            {
+              "name": "GET Architecture",
+              "id": "b3f1a1e0-0000-4000-8000-000000000066",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{steward_base}}/architecture",
+                  "host": [
+                    "{{steward_base}}/architecture"
+                  ]
+                },
+                "description": ""
+              },
+              "response": []
+            },
+            {
+              "name": "POST Approve proposal",
+              "id": "b3f1a1e0-0000-4000-8000-000000000067",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{steward_base}}/proposals/{{proposal_id}}/approve",
+                  "host": [
+                    "{{steward_base}}/proposals/{{proposal_id}}/approve"
+                  ]
+                },
+                "description": "Tier B consent flow -- approves a pending proposal, triggering the real gated MCP mutation call (checkout/place_food_order/book_table). Confirm proposal_id is a real pending row first."
+              },
+              "response": []
+            },
+            {
+              "name": "POST Snooze proposal",
+              "id": "b3f1a1e0-0000-4000-8000-000000000068",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{steward_base}}/proposals/{{proposal_id}}/snooze",
+                  "host": [
+                    "{{steward_base}}/proposals/{{proposal_id}}/snooze"
+                  ]
+                },
+                "description": "Snoozes 4 hours (matches the mockup's simple flow)."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Settings — Commitments (Standing Plans)",
+          "id": "b3f1a1e0-0000-4000-8000-000000000073",
+          "description": "The real onboarding path for recurring Dineout commitments, replacing the old CLI script.",
+          "item": [
+            {
+              "name": "GET Commitments page",
+              "id": "b3f1a1e0-0000-4000-8000-000000000070",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{steward_base}}/settings/commitments",
+                  "host": [
+                    "{{steward_base}}/settings/commitments"
+                  ]
+                },
+                "description": ""
+              },
+              "response": []
+            },
+            {
+              "name": "GET Search restaurants (Dineout)",
+              "id": "b3f1a1e0-0000-4000-8000-000000000071",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{steward_base}}/settings/commitments/search?label=Test&dayOfWeek=5&timeOfDay=20:00&partySize=2&addressId={{address_id}}&query=biryani",
+                  "host": [
+                    "{{steward_base}}/settings/commitments/search"
+                  ],
+                  "query": [
+                    {
+                      "key": "label",
+                      "value": "Test"
+                    },
+                    {
+                      "key": "dayOfWeek",
+                      "value": "5"
+                    },
+                    {
+                      "key": "timeOfDay",
+                      "value": "20:00"
+                    },
+                    {
+                      "key": "partySize",
+                      "value": "2"
+                    },
+                    {
+                      "key": "addressId",
+                      "value": "{{address_id}}"
+                    },
+                    {
+                      "key": "query",
+                      "value": "biryani"
+                    }
+                  ]
+                },
+                "description": "Backs the two-step form flow -- calls the real search_restaurants_dineout live."
+              },
+              "response": []
+            },
+            {
+              "name": "POST Create commitment",
+              "id": "b3f1a1e0-0000-4000-8000-000000000072",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/x-www-form-urlencoded"
+                  }
+                ],
+                "url": {
+                  "raw": "{{steward_base}}/settings/commitments/create",
+                  "host": [
+                    "{{steward_base}}/settings/commitments/create"
+                  ]
+                },
+                "description": "Writes a real row to the commitments table. Standing Plans will try to book it on its next run -- delete via psql after testing if this was just a smoke test.",
+                "body": {
+                  "mode": "urlencoded",
+                  "urlencoded": [
+                    {
+                      "key": "label",
+                      "value": "Test commitment (Postman)",
+                      "type": "text"
+                    },
+                    {
+                      "key": "dayOfWeek",
+                      "value": "5",
+                      "type": "text"
+                    },
+                    {
+                      "key": "timeOfDay",
+                      "value": "20:00",
+                      "type": "text"
+                    },
+                    {
+                      "key": "partySize",
+                      "value": "2",
+                      "type": "text"
+                    },
+                    {
+                      "key": "addressId",
+                      "value": "{{address_id}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "restaurantId",
+                      "value": "{{restaurant_id}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "latitude",
+                      "value": "{{latitude}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "longitude",
+                      "value": "{{longitude}}",
+                      "type": "text"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Settings — Watched People (Dead Man's Switch)",
+          "id": "b3f1a1e0-0000-4000-8000-000000000076",
+          "description": "",
+          "item": [
+            {
+              "name": "GET Watched People page",
+              "id": "b3f1a1e0-0000-4000-8000-000000000074",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{steward_base}}/settings/watched-people",
+                  "host": [
+                    "{{steward_base}}/settings/watched-people"
+                  ]
+                },
+                "description": ""
+              },
+              "response": []
+            },
+            {
+              "name": "POST Add watched person",
+              "id": "b3f1a1e0-0000-4000-8000-000000000075",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/x-www-form-urlencoded"
+                  }
+                ],
+                "url": {
+                  "raw": "{{steward_base}}/settings/watched-people",
+                  "host": [
+                    "{{steward_base}}/settings/watched-people"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "urlencoded",
+                  "urlencoded": [
+                    {
+                      "key": "name",
+                      "value": "Test (Postman)",
+                      "type": "text"
+                    },
+                    {
+                      "key": "addressId",
+                      "value": "{{address_id}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "quietThresholdHours",
+                      "value": "48",
+                      "type": "text"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Settings — Pantry (Kitchen Entropy)",
+          "id": "b3f1a1e0-0000-4000-8000-000000000079",
+          "description": "",
+          "item": [
+            {
+              "name": "GET Pantry page",
+              "id": "b3f1a1e0-0000-4000-8000-000000000077",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{steward_base}}/settings/pantry",
+                  "host": [
+                    "{{steward_base}}/settings/pantry"
+                  ]
+                },
+                "description": ""
+              },
+              "response": []
+            },
+            {
+              "name": "POST Record purchase",
+              "id": "b3f1a1e0-0000-4000-8000-000000000078",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/x-www-form-urlencoded"
+                  }
+                ],
+                "url": {
+                  "raw": "{{steward_base}}/settings/pantry",
+                  "host": [
+                    "{{steward_base}}/settings/pantry"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "urlencoded",
+                  "urlencoded": [
+                    {
+                      "key": "itemName",
+                      "value": "Test item (Postman)",
+                      "type": "text"
+                    },
+                    {
+                      "key": "quantity",
+                      "value": "1",
+                      "type": "text"
+                    },
+                    {
+                      "key": "unit",
+                      "value": "unit",
+                      "type": "text"
+                    },
+                    {
+                      "key": "shelfLifeDays",
+                      "value": "7",
+                      "type": "text"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Static assets",
+          "id": "b3f1a1e0-0000-4000-8000-000000000084",
+          "description": "Sanity checks -- e.g. re-verifying the favicon.ico fallback fix.",
+          "item": [
+            {
+              "name": "GET style.css",
+              "id": "b3f1a1e0-0000-4000-8000-000000000080",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{steward_base}}/style.css",
+                  "host": [
+                    "{{steward_base}}/style.css"
+                  ]
+                },
+                "description": ""
+              },
+              "response": []
+            },
+            {
+              "name": "GET favicon.png",
+              "id": "b3f1a1e0-0000-4000-8000-000000000081",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{steward_base}}/favicon.png",
+                  "host": [
+                    "{{steward_base}}/favicon.png"
+                  ]
+                },
+                "description": ""
+              },
+              "response": []
+            },
+            {
+              "name": "GET favicon.ico",
+              "id": "b3f1a1e0-0000-4000-8000-000000000082",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{steward_base}}/favicon.ico",
+                  "host": [
+                    "{{steward_base}}/favicon.ico"
+                  ]
+                },
+                "description": ""
+              },
+              "response": []
+            },
+            {
+              "name": "GET steward-logo.png",
+              "id": "b3f1a1e0-0000-4000-8000-000000000083",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{steward_base}}/steward-logo.png",
+                  "host": [
+                    "{{steward_base}}/steward-logo.png"
+                  ]
+                },
+                "description": ""
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Telegram Bot API",
+      "id": "b3f1a1e0-0000-4000-8000-000000000090",
+      "description": "The Standing Plans quick-add bot (src/telegram/). Runs long-polling (npm run telegram-bot), so getWebhookInfo should always show no webhook set -- if one appears, getUpdates will stop receiving messages until it's deleted.",
+      "item": [
+        {
+          "name": "GET getMe",
+          "id": "b3f1a1e0-0000-4000-8000-000000000086",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://api.telegram.org/bot{{telegram_bot_token}}/getMe",
+              "host": [
+                "https://api.telegram.org/bot{{telegram_bot_token}}/getMe"
+              ]
+            },
+            "description": "Sanity check the token is valid."
+          },
+          "response": []
+        },
+        {
+          "name": "GET getUpdates",
+          "id": "b3f1a1e0-0000-4000-8000-000000000087",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://api.telegram.org/bot{{telegram_bot_token}}/getUpdates",
+              "host": [
+                "https://api.telegram.org/bot{{telegram_bot_token}}/getUpdates"
+              ]
+            },
+            "description": "Careful running this manually while the bot process is also polling -- Telegram only delivers each update once; concurrent getUpdates calls race on the offset."
+          },
+          "response": []
+        },
+        {
+          "name": "GET getWebhookInfo",
+          "id": "b3f1a1e0-0000-4000-8000-000000000088",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://api.telegram.org/bot{{telegram_bot_token}}/getWebhookInfo",
+              "host": [
+                "https://api.telegram.org/bot{{telegram_bot_token}}/getWebhookInfo"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "POST sendMessage",
+          "id": "b3f1a1e0-0000-4000-8000-000000000089",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "https://api.telegram.org/bot{{telegram_bot_token}}/sendMessage",
+              "host": [
+                "https://api.telegram.org/bot{{telegram_bot_token}}/sendMessage"
+              ]
+            },
+            "description": "Simulates what a user typing into the bot sends -- useful for testing parse-commitment.ts's extraction without needing to type on a phone.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"chat_id\": \"{{telegram_chat_id}}\",\n  \"text\": \"commitment to Sigree in Bandra, Friday 8pm for 2\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
