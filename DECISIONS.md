@@ -6,6 +6,41 @@ fall behind silently.
 
 ---
 
+## 2026-08-26 — Instamart verified live; found a real bug in the MCP client itself, not just a schema guess
+
+**Decision:** fixed `callTool` (`src/mcp/client.ts`) to check for tool-level errors (`result.isError`), not just
+JSON-RPC-level ones. Every daemon depends on this function, so the fix is generic, not Kitchen-Entropy-specific.
+
+**Why:** `get_cart` returned a "not serviceable" error for an address that *had* worked seconds earlier
+(Instamart serviceability appears flaky/transient in this sandbox — same address, different result, no code
+change in between). `callTool` treated that error response as valid data because it only checked the outer
+JSON-RPC envelope, not the inner tool-result's `isError` flag. The bug: a missing `cartTotalAmount` silently
+parsed as ₹0 instead of throwing — a Tier B proposal almost went out with a fabricated ₹0 total. Caught by
+sanity-checking the number against an earlier manual test (₹123 for the same item), not by any built-in check.
+
+**What was also wrong in the guessed Instamart schema**, corrected the same way Dineout was:
+`update_cart` takes `selectedAddressId`, not `addressId`; `checkout` **requires** `addressId` (was being called
+with empty args); `get_cart` takes **no arguments at all**; product data lives under `variations`, not
+`variants`, with price nested as `price.offerPrice`; `get_cart`'s total is a **currency-formatted string**
+(`"₹123"`), not a number.
+
+**Confirmed, not assumed:** `update_cart` genuinely replaces the real item(s) sent (tested item A → item B,
+left only item B) — the reference doc was right about this one. Swiggy also auto-injects its own promotional
+freebie/voucher items independent of anything sent; those aren't "what this daemon restocked" and are ignored.
+Real platform fees (handling, small-cart, delivery-partner, surge, GST) took a single ₹17 item to ₹123 total —
+confirms the design choice to check the ₹1000 cap against `get_cart`'s real total, never a naive sum of item
+prices.
+
+**Also found:** the Food/Dineout home address (`8258911`) is not Instamart-serviceable on this account; a
+different saved address ("Work") is. Serviceability is per-vertical, not a property of the address itself.
+
+**Verified end-to-end (no live purchase — explicit instruction):** ran Kitchen Entropy for real against live
+data — found the depleted item, searched a real product, built a real cart (₹123 with fees), created a
+correctly-`pending` Tier B proposal. `checkout` was never called. Test cart cleared afterward so nothing is
+left sitting in the real Instamart cart.
+
+---
+
 ## 2026-08-26 — Phase 1 MVP: first real autonomous booking
 
 **Decision:** with explicit sign-off, flipped `dryRun` to `false` for one real execution against the

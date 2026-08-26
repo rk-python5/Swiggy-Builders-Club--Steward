@@ -6,38 +6,52 @@ import { pool } from "../db/pool.js";
 import { realClock } from "../sim/clock.js";
 
 const CONFIDENCE_THRESHOLD = 0.3; // below this, propose a restock
-const HOME_ADDRESS_ID = "8258911";
+
+// Instamart serviceability is per-vertical, not per-account -- the Food/Dineout home
+// address (8258911) came back "not serviceable" for Instamart on this account, verified
+// live 2026-08-26. The Work address is serviceable. Don't assume one address works
+// everywhere just because it worked for another server.
+const INSTAMART_ADDRESS_ID = "d5kv55162u3v0tsfb2hg";
 
 /**
- * UNVERIFIED against a live call -- there's no Instamart OAuth token yet, same position
- * Standing Plans was in before Dineout got checked (see DECISIONS.md 2026-08-25). Shape
- * is the best available guess from swiggy-mcp-reference.md §4.2. Do not trust this
- * blindly -- Dineout's guessed shape was wrong on several concrete points once checked.
- * Verify against a real tools/list + real search_products/update_cart/get_cart/checkout
- * calls before relying on this in production, the same way Dineout was checked.
+ * Verified live against real Instamart tool schemas (tools/list + real calls) on
+ * 2026-08-26 -- corrected from the swiggy-mcp-reference.md-derived guess, same pattern as
+ * Dineout. Real differences found: update_cart takes `selectedAddressId`, not `addressId`;
+ * checkout REQUIRES `addressId` (was being called with empty args); get_cart takes no
+ * arguments at all; product variants live under `variations`, not `variants`, with price
+ * nested as `price.offerPrice`; get_cart's total is a currency-formatted STRING
+ * (`"₹123"`), not a number. Confirmed update_cart genuinely replaces the real item(s) you
+ * send (tested: item A -> item B left only item B), though Swiggy also injects its own
+ * promotional freebie/voucher items independent of anything sent -- those are filtered
+ * out here by mrp, not counted as "what this daemon restocked."
  */
-interface ProductVariant {
+interface ProductVariation {
   spinId: string;
-  name: string;
-  price: number; // rupees, matching the pattern seen on Food's menu prices
+  skuId: string;
+  quantityDescription: string;
+  price: { mrp: number; offerPrice: number };
 }
 
 interface SearchProductsResult {
-  structuredContent?: { products: { name: string; variants: ProductVariant[] }[] };
+  structuredContent?: { products: { displayName: string; variations: ProductVariation[] }[] };
 }
 
-interface CartResult {
-  structuredContent?: { billBreakdown?: { total: number } };
+interface GetCartResult {
+  structuredContent?: { cartTotalAmount?: string };
 }
 
-async function findProduct(itemName: string): Promise<ProductVariant | null> {
+function parseRupeeString(value: string | undefined): number {
+  if (!value) return 0;
+  return Number(value.replace(/[^0-9.]/g, "")) || 0;
+}
+
+async function findProduct(itemName: string): Promise<ProductVariation | null> {
   const result = await callTool<SearchProductsResult>("im", "search_products", {
+    addressId: INSTAMART_ADDRESS_ID,
     query: itemName,
-    addressId: HOME_ADDRESS_ID,
   });
-  const products = result.structuredContent?.products ?? [];
-  const first = products[0];
-  return first?.variants?.[0] ?? null;
+  const product = result.structuredContent?.products?.[0];
+  return product?.variations?.[0] ?? null;
 }
 
 export async function runKitchenEntropy(dryRun = true): Promise<void> {
@@ -57,7 +71,7 @@ export async function runKitchenEntropy(dryRun = true): Promise<void> {
       return;
     }
 
-    const cartItems: { spinId: string; quantity: number }[] = [];
+    const cartItems: { spinId: string; skuId: string; quantity: number }[] = [];
     const lineNames: string[] = [];
     for (const item of depleted) {
       const product = await findProduct(item.itemName);
@@ -65,7 +79,7 @@ export async function runKitchenEntropy(dryRun = true): Promise<void> {
         console.log(`[kitchen-entropy] no product match for "${item.itemName}", skipping`);
         continue;
       }
-      cartItems.push({ spinId: product.spinId, quantity: 1 });
+      cartItems.push({ spinId: product.spinId, skuId: product.skuId, quantity: 1 });
       lineNames.push(item.itemName);
     }
 
@@ -77,12 +91,9 @@ export async function runKitchenEntropy(dryRun = true): Promise<void> {
       return;
     }
 
-    // Instamart's update_cart REPLACES the whole cart, not appends (per
-    // swiggy-mcp-reference.md, itself unverified) -- a single call with everything this
-    // run wants to restock, not one call per item.
-    await callTool("im", "update_cart", { addressId: HOME_ADDRESS_ID, items: cartItems });
-    const cart = await callTool<CartResult>("im", "get_cart", { addressId: HOME_ADDRESS_ID });
-    const totalRupees = cart.structuredContent?.billBreakdown?.total ?? 0;
+    await callTool("im", "update_cart", { selectedAddressId: INSTAMART_ADDRESS_ID, items: cartItems });
+    const cart = await callTool<GetCartResult>("im", "get_cart", {});
+    const totalRupees = parseRupeeString(cart.structuredContent?.cartTotalAmount);
     const amountPaise = Math.round(totalRupees * 100);
 
     const minConfidence = Math.min(...depleted.map((d) => d.confidence));
@@ -95,7 +106,7 @@ export async function runKitchenEntropy(dryRun = true): Promise<void> {
       tier: "B",
       summary: `Restock cart ready: ${lineNames.join(", ")} (₹${totalRupees})`,
       toolName: "checkout",
-      args: {},
+      args: { addressId: INSTAMART_ADDRESS_ID },
       amountPaise,
       confidence: minConfidence,
       dryRun,

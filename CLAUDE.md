@@ -120,6 +120,13 @@ calls. Spot-checked so far:
   identical ID for this account's home address as Food's `get_addresses`. `book_table`/`get_available_slots`
   need `latitude`/`longitude` directly (never returned by `get_saved_locations`, for privacy), not an address
   ID — see `DECISIONS.md`'s 2026-08-25 Dineout-verification entry for the full corrected schema.
+- 🆕 **`src/mcp/client.ts`'s `callTool` now throws on tool-level errors too, not just JSON-RPC ones.** A tool
+  call can be JSON-RPC-successful while still being a tool failure (`result.isError: true`, e.g. Instamart's
+  "address not serviceable" — confirmed flaky/transient, same address worked seconds earlier). Before this fix,
+  such an error silently passed through as if it were valid data — a missing `cartTotalAmount` parsed as ₹0
+  instead of throwing. Any code calling the MCP layer directly (bypassing `callTool`) needs the same check.
+  Also confirmed: the `{success, error}` shape the reference doc's §3 called "universal" does show up for real —
+  but only on tool-level *errors*, not as the general success envelope it claimed.
 
 For anything current/authoritative, prefer fetching live: `https://mcp.swiggy.com/builders/llms.txt` (index of
 every doc page, kept current by Swiggy) and `https://mcp.swiggy.com/builders/docs/reference/` — this repo's
