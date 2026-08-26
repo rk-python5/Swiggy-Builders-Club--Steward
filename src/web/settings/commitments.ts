@@ -81,7 +81,7 @@ export async function renderCommitmentsPage(justCreated: boolean): Promise<strin
 }
 
 export async function renderCommitmentsSearchResults(q: Record<string, string>): Promise<string> {
-  const { restaurants, latitude, longitude } = await searchDineoutRestaurants(q.addressId, q.query);
+  const { restaurants, latitude, longitude } = await searchDineoutRestaurants({ addressId: q.addressId }, q.query);
 
   const results = restaurants.length
     ? restaurants

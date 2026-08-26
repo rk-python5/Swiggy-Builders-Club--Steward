@@ -17,7 +17,8 @@
     "add-watched-person": "tsx src/scripts/add-watched-person.ts",
     "check-in": "tsx src/scripts/check-in.ts",
     "web": "tsx src/web/server.ts",
-    "test": "node --import tsx --test test/**/*.test.ts"
+    "test": "node --import tsx --test test/**/*.test.ts",
+    "telegram-bot": "tsx src/scripts/start-telegram-bot.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
