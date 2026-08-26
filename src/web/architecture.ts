@@ -59,11 +59,11 @@ const DOMAINS = [
 export async function renderArchitecture(): Promise<string> {
   const cards = DOMAINS.map((d) => {
     const cls = ["arch-card", d.highlight ? "highlight" : "", d.dashed ? "dashed" : ""].filter(Boolean).join(" ");
-    const iconColor = d.highlight ? "#fff" : "#2F63D8";
+    const iconColor = d.highlight ? "#fff" : "#E56A00";
     return `<div class="${cls}">
       <div class="card-top">
-        <div class="icon-tile ${d.highlight ? "spine" : ""}" style="${d.highlight ? "" : "background:#E3EBFB"}">${icon(d.icon, iconColor)}</div>
-        <span class="pill" style="background:${d.highlight ? "rgba(255,255,255,0.2)" : "#F0F2F5"};color:${d.highlight ? "#fff" : "#6B7080"}">${esc(d.badgeLabel)}</span>
+        <div class="icon-tile ${d.highlight ? "spine" : ""}" style="${d.highlight ? "" : "background:#FFEFDF"}">${icon(d.icon, iconColor)}</div>
+        <span class="pill" style="background:${d.highlight ? "rgba(255,255,255,0.2)" : "#FFEFDF"};color:${d.highlight ? "#fff" : "#E56A00"}">${esc(d.badgeLabel)}</span>
       </div>
       <div class="arch-domain">DOMAIN ${d.n}</div>
       <div class="arch-name">${esc(d.name)}</div>

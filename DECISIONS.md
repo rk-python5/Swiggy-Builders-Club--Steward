@@ -6,6 +6,33 @@ fall behind silently.
 
 ---
 
+## 2026-08-26 — CLI onboarding replaced with real Settings pages; Swiggy-orange theme
+
+**Decision:** built `/settings/commitments`, `/settings/watched-people`, `/settings/pantry` as real forms backed
+by live data, replacing the `add-commitment`/`add-watched-person`/`record-purchase` CLI scripts as the way
+anyone (not just the developer) actually gets data into the system. Restyled the whole app around Swiggy's real
+brand orange (`#FC8019`) instead of the mockup's blue.
+
+**Why now:** three real product questions surfaced the gap directly — how does the system learn a commitment
+(answer: it can't infer one, it has to be told, which means a real form, not a CLI flag), how does payment
+happen (answer: UPI needs live human 2FA, which is *why* every daemon defaults to Cash/COD — that's what makes
+"zero taps" true), and who's "the other person" for Dead Man's Switch (answer: already solved by data that
+exists — Swiggy's own `get_addresses` already tags entries like "Maa"/"Work"/"Friends & Family", so the picker
+is just that list, not a new contacts system).
+
+**What's real, not mocked:** the address picker on both Commitments and Watched People calls live
+`get_addresses` and shows this account's actual 14 saved addresses. The Commitments form does a genuinely live
+`search_restaurants_dineout` call and lets you pick a real restaurant — proved end-to-end by creating and then
+deleting a real "Test Biryani Night" commitment against real search results (Sigree, Punjab Grill, Biryani Can,
+etc.), not placeholder data.
+
+**Swiggy's actual logo asset couldn't be fetched** — this sandbox's network access is scoped to `mcp.swiggy.com`
+(the MCP domain), not their marketing site (`www.swiggy.com`), confirmed by both `curl` and a Playwright
+navigation returning nothing. "Powered by Swiggy" uses their real, publicly well-documented brand orange as a
+styled wordmark instead of a fabricated logo shape — swap in the real file if one gets provided.
+
+---
+
 ## 2026-08-26 — Corrected: the first Phase 4 build didn't actually follow the mockup
 
 **What went wrong:** the first pass at the Steward web app used emoji icons with no badge background, put "Approve" in the sidebar nav as a full page, and never built the Architecture view — none of which matches `Steward Web.html`. This wasn't caught by the earlier "screenshotted against the mockup for a visual sanity check" claim in the previous commit message — that check was too shallow (a glance, not a real comparison) to catch real structural differences.

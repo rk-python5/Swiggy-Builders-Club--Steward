@@ -128,14 +128,17 @@ picks the correct vertical on a handful of hand-tested free-text prompts (⏸ de
 
 ---
 
-## Phase 4 — Frontend: Surface and Demo 🟡 core built 2026-08-26, Settings/Architecture/mobile still open
+## Phase 4 — Frontend: Surface and Demo 🟢 web done 2026-08-26 (mobile still open)
 
-Dashboard, Timeline, and Approve are real, running, and verified end-to-end against live data — including the
-actual approve action submitted through the real web form, transitioning a real proposal and updating the UI
-correctly. Stack ended up Express + server-rendered HTML, not the React/Next.js port sketched below — see
-`DECISIONS.md`'s 2026-08-26 stack entry. Not yet built: the Settings screen (still the gap flagged below), the
-Architecture view, and the mobile layout — Dashboard/Timeline/Approve on web cover the core "see and act on
-what's happening" loop, which is what the exit criteria actually depend on.
+Dashboard, Timeline, Architecture, and the Approve modal are real, running, and verified end-to-end against
+live data — including the actual approve action submitted through the real web form, transitioning a real
+proposal and updating the UI correctly. Settings (`/settings/commitments`, `/settings/watched-people`,
+`/settings/pantry`) now exists too, real forms replacing the CLI scripts as how anyone actually gets data into
+the system — see `DECISIONS.md`'s 2026-08-26 entry for why that mattered and what's genuinely live (the address
+picker and restaurant search both call real Swiggy tools, not placeholder data). Stack ended up Express +
+server-rendered HTML, not the React/Next.js port sketched below — see `DECISIONS.md`'s stack entry. Theme was
+redirected from the mockup's blue to Swiggy's real brand orange, on request, for a more user-facing feel. Only
+the mobile layout is still open.
 
 Without this phase the project stops at a backend + a Telegram bot — a working model, not a product. It's a
 real deliverable, not an afterthought; it's just sequenced last because the *build* needs real accumulated
@@ -165,11 +168,11 @@ bundles with no readable markup, not plain HTML):**
 - **Architecture** (web only, not on mobile — a dev/reviewer view, not an end-user one) — the same six-domain
   diagram as the standalone Architecture artifact, embedded directly in the app.
 
-**Two real gaps the mockups surface — not cosmetic, both change earlier phases:**
-1. **No Settings screen exists.** Nothing designed yet for addresses, spend caps, tracked people (Dead Man's
-   Switch), or depletion thresholds (Kitchen Entropy) — the knobs a real user needs, not a config file only the
-   developer can touch. Needs its own design pass before or during Phase 4, it's not just an implementation
-   detail to backfill.
+**One real gap the mockups surfaced — not cosmetic, changed an earlier phase:**
+1. ~~No Settings screen exists.~~ **Fixed 2026-08-26** — `/settings/commitments`, `/settings/watched-people`,
+   `/settings/pantry` are real, live-data-backed forms now (see `DECISIONS.md`). Spend caps are still only
+   enforced by the Action Gate (Phase 2), not user-adjustable from Settings — that's still a config-file-only
+   knob, just no longer the *only* one.
 2. **"Snooze," not "Reject."** The approval flow only offers *Approve order* / *Snooze* — deferring a proposal
    to reappear later, not killing it outright. That's a real state the `proposals` table (Phase 2) needs to
    support — `pending` / `approved` / `snoozed(until)` — not the simpler accept/reject binary planned there
