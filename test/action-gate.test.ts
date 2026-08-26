@@ -8,9 +8,15 @@ import { pool } from "../src/db/pool.js";
 // mocked, since the thing actually being proven is the DB-level unique constraint on
 // idempotency_key. dryRun:true means no MCP/network call happens either way, so this
 // needs no Swiggy credentials of any kind.
+//
+// Every test cleans up its own row via t.after(), keyed on the idempotency key it used.
+// Found the hard way: without this, every `npm test` run left a permanent "test restock"
+// proposal in the same dev database the Steward web UI reads from -- 22 fake rows had
+// silently accumulated on the real Dashboard before this was caught.
 
-test("propose() with the same idempotency key does not execute twice", async () => {
+test("propose() with the same idempotency key does not execute twice", async (t) => {
   const key = `test:${Date.now()}:${Math.random()}`;
+  t.after(() => pool.query("DELETE FROM proposals WHERE idempotency_key = $1", [key]));
 
   const first = await propose({
     idempotencyKey: key,
@@ -42,8 +48,9 @@ test("propose() with the same idempotency key does not execute twice", async () 
   assert.equal(Number(rows[0].count), 1, "exactly one row must exist for this idempotency key");
 });
 
-test("tier B proposals stay pending until explicitly approved", async () => {
+test("tier B proposals stay pending until explicitly approved", async (t) => {
   const key = `test:${Date.now()}:${Math.random()}`;
+  t.after(() => pool.query("DELETE FROM proposals WHERE idempotency_key = $1", [key]));
 
   const proposal = await propose({
     idempotencyKey: key,
@@ -61,8 +68,9 @@ test("tier B proposals stay pending until explicitly approved", async () => {
   assert.equal(proposal.amount_paise, 64_000);
 });
 
-test("the ₹1000 cap is enforced by the gate itself, before any MCP call is attempted", async () => {
+test("the ₹1000 cap is enforced by the gate itself, before any MCP call is attempted", async (t) => {
   const key = `test:${Date.now()}:${Math.random()}`;
+  t.after(() => pool.query("DELETE FROM proposals WHERE idempotency_key = $1", [key]));
 
   const proposal = await propose({
     idempotencyKey: key,
@@ -80,8 +88,9 @@ test("the ₹1000 cap is enforced by the gate itself, before any MCP call is att
   assert.match(proposal.error ?? "", /1000/);
 });
 
-test("a proposal exactly at the ₹1000 cap is also rejected (cap is >=, not >)", async () => {
+test("a proposal exactly at the ₹1000 cap is also rejected (cap is >=, not >)", async (t) => {
   const key = `test:${Date.now()}:${Math.random()}`;
+  t.after(() => pool.query("DELETE FROM proposals WHERE idempotency_key = $1", [key]));
 
   const proposal = await propose({
     idempotencyKey: key,

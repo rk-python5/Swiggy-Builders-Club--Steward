@@ -25,6 +25,11 @@ test("findSlot returns a real free deal for a restaurant/date known to have dinn
   // free (isFree, bookingPrice=0) dinner slots on 2026-08-27. If this restaurant stops
   // offering that deal, this test will need a new fixture restaurant/date -- that's
   // expected, not a code regression.
+  //
+  // Cleans up the commitment it creates -- without this, every `npm test` run left a
+  // permanent duplicate ("Live verification dinner" x6 accumulated before this was
+  // caught). Does NOT touch commitment id 2, the real one behind the actual Phase 1
+  // booking (Order ID 246727708188841) -- this test always creates its own fresh row.
   const commitment = await createCommitment({
     label: "Live verification dinner",
     dayOfWeek: 4, // 2026-08-27 is a Thursday
@@ -34,6 +39,7 @@ test("findSlot returns a real free deal for a restaurant/date known to have dinn
     latitude: 19.098639,
     longitude: 73.00371,
   });
+  t.after(() => pool.query("DELETE FROM commitments WHERE id = $1", [commitment.id]));
 
   const chosen = await findSlot(commitment, "2026-08-27");
   assert.ok(chosen, "expected a matching free slot on a date known to have dinner availability");
@@ -41,8 +47,11 @@ test("findSlot returns a real free deal for a restaurant/date known to have dinn
   assert.equal(chosen!.deal.bookingPrice, 0);
   assert.equal(chosen!.slot.dateStr, "2026-08-27");
 
+  const idempotencyKey = `live-test:${commitment.id}:${Date.now()}`;
+  t.after(() => pool.query("DELETE FROM proposals WHERE idempotency_key = $1", [idempotencyKey]));
+
   const proposal = await propose({
-    idempotencyKey: `live-test:${commitment.id}:${Date.now()}`,
+    idempotencyKey,
     daemon: "standing_plans",
     server: "dineout",
     tier: "A",
