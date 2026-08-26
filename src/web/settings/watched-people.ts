@@ -3,6 +3,7 @@ import { fetchAllAddresses } from "./addresses.js";
 import { createWatchedPerson } from "../../world/watched-people.js";
 import { pool } from "../../db/pool.js";
 import { settingsTabs } from "./tabs.js";
+import { emptyStateIcon } from "../icons.js";
 
 export async function renderWatchedPeoplePage(justCreated: boolean): Promise<string> {
   const [addresses, existingRows] = await Promise.all([
@@ -27,7 +28,7 @@ export async function renderWatchedPeoplePage(justCreated: boolean): Promise<str
             `<div class="restaurant-option"><div><div class="name">${esc(r.name)}</div><div class="meta">quiet after ${r.quiet_threshold_hours}h ${r.active ? "" : "(inactive)"}</div></div></div>`,
         )
         .join("\n")
-    : `<div class="empty-state">No one being watched yet.</div>`;
+    : `<div class="empty-state">${emptyStateIcon("bell")}<p>No one being watched yet.</p></div>`;
 
   const body = `
     <div class="page-header"><h2>Settings</h2></div>

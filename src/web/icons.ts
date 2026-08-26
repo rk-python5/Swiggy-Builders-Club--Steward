@@ -14,3 +14,8 @@ export function icon(name: string, colorVar: string, size = 20): string {
   const path = PATHS[name] ?? PATHS.bell;
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${colorVar}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
 }
+
+/** Consistent muted icon treatment for empty states, reused across Dashboard/Timeline/Settings. */
+export function emptyStateIcon(name: string): string {
+  return `<div class="empty-state-icon">${icon(name, "var(--ink-400)", 28)}</div>`;
+}

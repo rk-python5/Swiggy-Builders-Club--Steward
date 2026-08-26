@@ -1,7 +1,8 @@
 import { layout, esc } from "../layout.js";
-import { recordPurchase } from "../../world/pantry.js";
+import { recordPurchase, confidenceRemaining } from "../../world/pantry.js";
 import { pool } from "../../db/pool.js";
 import { settingsTabs } from "./tabs.js";
+import { emptyStateIcon } from "../icons.js";
 
 export async function renderPantryPage(justCreated: boolean): Promise<string> {
   const { rows } = await pool.query(
@@ -9,14 +10,25 @@ export async function renderPantryPage(justCreated: boolean): Promise<string> {
      FROM pantry_items ORDER BY item_name, purchased_at DESC`,
   );
 
+  const now = new Date();
   const existingList = rows.length
     ? rows
-        .map(
-          (r) =>
-            `<div class="restaurant-option"><div><div class="name">${esc(r.item_name)}</div><div class="meta">${r.quantity} ${esc(r.unit)} &middot; ${r.shelf_life_days}-day shelf life &middot; last bought ${new Date(r.purchased_at).toLocaleDateString()}</div></div></div>`,
-        )
+        .map((r) => {
+          const confidence = confidenceRemaining({ purchasedAt: new Date(r.purchased_at), shelfLifeDays: Number(r.shelf_life_days) }, now);
+          const pct = Math.round(confidence * 100);
+          const barColor = confidence > 0.5 ? "var(--green-600)" : confidence > 0.25 ? "var(--amber-600)" : "var(--ink-400)";
+          return `<div class="restaurant-option">
+            <div>
+              <div class="name">${esc(r.item_name)}</div>
+              <div class="meta">${r.quantity} ${esc(r.unit)} &middot; ${r.shelf_life_days}-day shelf life &middot; last bought ${new Date(r.purchased_at).toLocaleDateString()}</div>
+            </div>
+            <div class="confidence-bar" title="${pct}% confidence still around">
+              <div class="confidence-fill" style="width:${pct}%;background:${barColor}"></div>
+            </div>
+          </div>`;
+        })
         .join("\n")
-    : `<div class="empty-state">Nothing tracked yet.</div>`;
+    : `<div class="empty-state">${emptyStateIcon("layers")}<p>Nothing tracked yet.</p></div>`;
 
   const body = `
     <div class="page-header"><h2>Settings</h2></div>

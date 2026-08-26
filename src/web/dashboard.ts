@@ -43,7 +43,7 @@ function modalFor(status: DaemonStatus): string {
     <div class="modal-card">
       <div class="card">
         <div class="card-top">
-          <div class="icon-tile spine">${icon(meta.icon, "#fff")}</div>
+          <div class="icon-tile spine">${icon(meta.icon, "var(--white)")}</div>
           <span class="pill tier-b">Tier B &middot; Consent</span>
         </div>
         <p class="modal-title">${esc(meta.name)}</p>
@@ -71,7 +71,7 @@ export async function renderDashboard(): Promise<string> {
       const tierLabel = s.meta.tier === "A" ? "Tier A &middot; Autonomous" : "Tier B &middot; Consent";
       return `<div class="card ${tierClass}">
         <div class="card-body">
-          <div class="icon-tile ${tierClass}">${icon(s.meta.icon, s.meta.tier === "A" ? "#2E9142" : "#C17F1F")}</div>
+          <div class="icon-tile ${tierClass}">${icon(s.meta.icon, s.meta.tier === "A" ? "var(--green-600)" : "var(--amber-600)")}</div>
           <div style="flex:1">
             <div class="card-top">
               <p class="card-title">${esc(s.meta.name)}</p>
@@ -88,11 +88,19 @@ export async function renderDashboard(): Promise<string> {
 
   const modals = statuses.map(modalFor).join("\n");
 
+  const pendingCount = statuses.filter((s) => s.pendingProposal).length;
+  const watchingCount = statuses.length - pendingCount;
+  const summary =
+    pendingCount > 0
+      ? `${watchingCount} watching &middot; <strong>${pendingCount} need${pendingCount === 1 ? "s" : ""} your review</strong>`
+      : `${watchingCount} watching &middot; nothing needs you right now`;
+
   const body = `
     <div class="page-header">
       <h2>Daemons</h2>
       <span class="subtitle">Powered by Swiggy</span>
     </div>
+    <p class="status-summary">${summary}</p>
     ${cards}
     ${modals}
   `;

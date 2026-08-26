@@ -4,6 +4,7 @@ import { searchDineoutRestaurants } from "./dineout-search.js";
 import { createCommitment } from "../../world/commitments.js";
 import { pool } from "../../db/pool.js";
 import { settingsTabs } from "./tabs.js";
+import { emptyStateIcon } from "../icons.js";
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -30,7 +31,7 @@ export async function renderCommitmentsPage(justCreated: boolean): Promise<strin
             `<div class="restaurant-option"><div><div class="name">${esc(r.label)}</div><div class="meta">Every ${DAY_NAMES[r.day_of_week]} at ${String(r.time_of_day).slice(0, 5)} &middot; restaurant ${esc(r.restaurant_id ?? "?")}</div></div></div>`,
         )
         .join("\n")
-    : `<div class="empty-state">No standing plans yet.</div>`;
+    : `<div class="empty-state">${emptyStateIcon("clock")}<p>No standing plans yet.</p></div>`;
 
   const dayOptions = DAY_NAMES.map((d, i) => `<option value="${i}">${d}</option>`).join("");
 
@@ -97,7 +98,7 @@ export async function renderCommitmentsSearchResults(q: Record<string, string>):
           </form>`;
         })
         .join("\n")
-    : `<div class="empty-state">No Dineout-bookable restaurants found for "${esc(q.query)}" -- try a different search.</div>`;
+    : `<div class="empty-state">${emptyStateIcon("bell")}<p>No Dineout-bookable restaurants found for "${esc(q.query)}" -- try a different search.</p></div>`;
 
   const body = `
     <div class="page-header"><h2>Pick a restaurant</h2></div>

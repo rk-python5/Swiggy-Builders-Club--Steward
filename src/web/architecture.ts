@@ -59,11 +59,18 @@ const DOMAINS = [
 export async function renderArchitecture(): Promise<string> {
   const cards = DOMAINS.map((d) => {
     const cls = ["arch-card", d.highlight ? "highlight" : "", d.dashed ? "dashed" : ""].filter(Boolean).join(" ");
-    const iconColor = d.highlight ? "#fff" : "#E56A00";
-    return `<div class="${cls}">
+    const iconColor = d.highlight ? "var(--white)" : "var(--swiggy-orange-dark)";
+    // Border-top accent groups domains by category (Spine/Gate/Pluggable/Thin) -- same
+    // "color = relationship" language the Dashboard already uses for Tier A/B, rather
+    // than absolutely-positioned connector lines between non-adjacent grid cells, which
+    // can't be visually verified reliably in this environment (screenshot tooling has
+    // been unreliable this session -- see the plan's verification note).
+    const categoryColor = d.highlight ? "" : d.dashed ? "var(--stone-300)" : d.badgeLabel === "Thin" ? "var(--ink-400)" : "var(--swiggy-orange-dark)";
+    const borderStyle = categoryColor ? `border-top:3px solid ${categoryColor};` : "";
+    return `<div class="${cls}" style="${borderStyle}">
       <div class="card-top">
-        <div class="icon-tile ${d.highlight ? "spine" : ""}" style="${d.highlight ? "" : "background:#FFEFDF"}">${icon(d.icon, iconColor)}</div>
-        <span class="pill" style="background:${d.highlight ? "rgba(255,255,255,0.2)" : "#FFEFDF"};color:${d.highlight ? "#fff" : "#E56A00"}">${esc(d.badgeLabel)}</span>
+        <div class="icon-tile ${d.highlight ? "spine" : ""}" style="${d.highlight ? "" : "background:var(--swiggy-orange-soft)"}">${icon(d.icon, iconColor)}</div>
+        <span class="pill" style="background:${d.highlight ? "rgba(255,255,255,0.2)" : "var(--swiggy-orange-soft)"};color:${d.highlight ? "var(--white)" : "var(--swiggy-orange-dark)"}">${esc(d.badgeLabel)}</span>
       </div>
       <div class="arch-domain">DOMAIN ${d.n}</div>
       <div class="arch-name">${esc(d.name)}</div>
