@@ -6,9 +6,9 @@ import { relativeTime } from "./format.js";
 const DAEMON_NAMES = new Map(DAEMONS.map((d) => [d.key, d.name]));
 
 function dotClass(status: string): string {
-  if (status === "executed") return "dot-green";
-  if (status === "pending" || status === "snoozed") return "dot-amber";
-  return "dot-gray";
+  if (status === "executed") return "tier-a";
+  if (status === "pending" || status === "snoozed") return "tier-b";
+  return "neutral";
 }
 
 function statusLabel(status: string): string {
@@ -33,14 +33,15 @@ export async function renderTimeline(): Promise<string> {
 
   const items = rows.length
     ? rows
-        .map((row) => {
+        .map((row, i) => {
           const when = row.resolved_at ? new Date(row.resolved_at) : new Date(row.created_at);
           const daemonName = DAEMON_NAMES.get(row.daemon) ?? row.daemon;
+          const divider = i < rows.length - 1 ? '<div class="divider"></div>' : "";
           return `<div class="timeline-item">
-            <div class="timeline-time"><span class="dot ${dotClass(row.status)}"></span>${relativeTime(when)}</div>
+            <span class="status-pill"><span class="dot ${dotClass(row.status)}"></span>${relativeTime(when)}</span>
             <p class="timeline-title">${esc(daemonName)}</p>
             <p class="timeline-detail">${esc(row.summary)} &middot; ${statusLabel(row.status)}</p>
-          </div>`;
+          </div>${divider}`;
         })
         .join("\n")
     : `<div class="empty-state">Nothing yet -- run a daemon to see activity here.</div>`;

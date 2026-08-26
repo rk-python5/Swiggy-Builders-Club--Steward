@@ -4,7 +4,11 @@ function esc(s: string): string {
 
 export { esc };
 
-export function layout(activeNav: "dashboard" | "timeline" | "approve", title: string, body: string): string {
+// Nav is Dashboard / Timeline / Architecture, matching the mockup exactly -- Approve is
+// not a nav destination in the design, it's a modal triggered from a Dashboard card's
+// Review button (see dashboard.ts). An earlier version wrongly put "Approve" in the nav
+// where "Architecture" belongs.
+export function layout(activeNav: "dashboard" | "timeline" | "architecture", title: string, body: string): string {
   const navLink = (href: string, label: string, key: string) =>
     `<a href="${href}" class="${key === activeNav ? "active" : ""}">${label}</a>`;
 
@@ -13,7 +17,7 @@ export function layout(activeNav: "dashboard" | "timeline" | "approve", title: s
 <head>
   <meta charset="utf-8">
   <title>Steward -- ${esc(title)}</title>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Mono:wght@700&display=swap">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -24,7 +28,7 @@ export function layout(activeNav: "dashboard" | "timeline" | "approve", title: s
       <nav class="nav">
         ${navLink("/", "Dashboard", "dashboard")}
         ${navLink("/timeline", "Timeline", "timeline")}
-        ${navLink("/approve", "Approve", "approve")}
+        ${navLink("/architecture", "Architecture", "architecture")}
       </nav>
     </div>
     <div class="main">

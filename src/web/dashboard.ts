@@ -1,50 +1,100 @@
-import { loadDaemonStatuses } from "./daemons.js";
+import { loadDaemonStatuses, type DaemonStatus } from "./daemons.js";
 import { layout, esc } from "./layout.js";
 import { relativeTime, rupees } from "./format.js";
+import { icon } from "./icons.js";
+
+function statusRow(status: DaemonStatus): string {
+  const { meta, lastRun, pendingProposal } = status;
+  const tierClass = meta.tier === "A" ? "tier-a" : "tier-b";
+
+  if (pendingProposal) {
+    return `<div class="status-row">
+      <span class="status-pill"><span class="dot ${tierClass}"></span>${esc(pendingProposal.summary)}</span>
+      <a href="#review-${meta.key}" class="btn btn-primary">Review</a>
+    </div>`;
+  }
+  if (meta.tier === "A") {
+    const label = lastRun ? `last checked ${relativeTime(lastRun.startedAt)}` : "not yet run";
+    return `<div class="status-row">
+      <span class="status-pill"><span class="dot ${tierClass}"></span>${esc(label)}</span>
+      <span class="no-action">No action needed</span>
+    </div>`;
+  }
+  const label = lastRun ? `watching &middot; checked ${relativeTime(lastRun.startedAt)}` : "not yet run";
+  return `<div class="status-row">
+    <span class="status-pill"><span class="dot neutral"></span>${label}</span>
+  </div>`;
+}
+
+function modalFor(status: DaemonStatus): string {
+  const { meta, pendingProposal } = status;
+  if (!pendingProposal) return "";
+
+  const args = pendingProposal.payload?.args ?? {};
+  const address = args.addressId ? String(args.addressId) : null;
+  const paymentMethod = args.paymentMethod ? String(args.paymentMethod) : "default payment method";
+
+  // Matches the mockup's ApprovalModal structure: icon tile + Tier B badge, name,
+  // status line, delivery address, payment, then Approve order / Snooze. A server-
+  // rendered form can't replicate the mockup's in-place "Order placed" swap without
+  // client-side JS -- approving/snoozing here submits and returns to the dashboard,
+  // where the card's own status reflects the new state instead.
+  return `<div class="modal-overlay" id="review-${meta.key}">
+    <div class="modal-card">
+      <div class="card">
+        <div class="card-top">
+          <div class="icon-tile spine">${icon(meta.icon, "#fff")}</div>
+          <span class="pill tier-b">Tier B &middot; Consent</span>
+        </div>
+        <p class="modal-title">${esc(meta.name)}</p>
+        <p class="card-desc">${esc(pendingProposal.summary)}</p>
+        <div class="divider"></div>
+        ${address ? `<div class="modal-label">Delivery address</div><div class="modal-value">Your order will be delivered to: ${esc(address)}.</div>` : ""}
+        <div class="modal-label">Payment</div>
+        <div class="modal-value">${esc(paymentMethod)}${pendingProposal.amountPaise !== null ? ` &middot; ${rupees(pendingProposal.amountPaise)}` : ""}</div>
+        <div class="modal-actions">
+          <form method="post" action="/proposals/${pendingProposal.id}/approve"><button class="btn btn-primary" type="submit">Approve order</button></form>
+          <form method="post" action="/proposals/${pendingProposal.id}/snooze"><button class="btn btn-secondary" type="submit">Snooze</button></form>
+          <a href="#" class="btn btn-ghost">Close</a>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
 
 export async function renderDashboard(): Promise<string> {
   const statuses = await loadDaemonStatuses();
 
   const cards = statuses
-    .map(({ meta, lastRun, pendingProposal }) => {
-      const tierClass = meta.tier === "A" ? "tier-a" : "tier-b";
-      const tierLabel = meta.tier === "A" ? "TIER A &middot; AUTONOMOUS" : "TIER B &middot; CONSENT";
-
-      let statusHtml: string;
-      if (meta.tier === "A") {
-        statusHtml = lastRun
-          ? `<span>last checked ${relativeTime(lastRun.startedAt)}</span><span>No action needed</span>`
-          : `<span>not yet run</span><span></span>`;
-      } else if (pendingProposal) {
-        statusHtml = `<span>PROPOSAL READY &middot; ${rupees(pendingProposal.amountPaise)}</span>
-          <form class="inline" method="get" action="/approve"><button class="btn btn-primary" type="submit">Review</button></form>`;
-      } else {
-        statusHtml = lastRun
-          ? `<span>watching &middot; checked ${relativeTime(lastRun.startedAt)}</span><span></span>`
-          : `<span>not yet run</span><span></span>`;
-      }
-
+    .map((s) => {
+      const tierClass = s.meta.tier === "A" ? "tier-a" : "tier-b";
+      const tierLabel = s.meta.tier === "A" ? "Tier A &middot; Autonomous" : "Tier B &middot; Consent";
       return `<div class="card ${tierClass}">
-        <div class="card-top">
-          <div>
-            <p class="card-title">${meta.icon} ${esc(meta.name)}</p>
-            <p class="card-desc">${esc(meta.description)} <span style="color:var(--text-tertiary)">(${esc(meta.vertical)})</span></p>
+        <div class="card-body">
+          <div class="icon-tile ${tierClass}">${icon(s.meta.icon, s.meta.tier === "A" ? "#2E9142" : "#C17F1F")}</div>
+          <div style="flex:1">
+            <div class="card-top">
+              <p class="card-title">${esc(s.meta.name)}</p>
+              <span class="pill ${tierClass}">${tierLabel}</span>
+            </div>
+            <p class="card-desc">${esc(s.meta.description)} <span class="muted">(${esc(s.meta.vertical)})</span></p>
+            <div class="divider"></div>
+            ${statusRow(s)}
           </div>
-          <span class="pill ${tierClass}">${tierLabel}</span>
         </div>
-        <div class="card-status">${statusHtml}</div>
       </div>`;
     })
     .join("\n");
 
+  const modals = statuses.map(modalFor).join("\n");
+
   const body = `
     <div class="page-header">
-      <div>
-        <h2>Daemons</h2>
-      </div>
+      <h2>Daemons</h2>
       <span class="subtitle">Powered by Swiggy</span>
     </div>
     ${cards}
+    ${modals}
   `;
 
   return layout("dashboard", "Dashboard", body);

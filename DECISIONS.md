@@ -6,6 +6,16 @@ fall behind silently.
 
 ---
 
+## 2026-08-26 — Corrected: the first Phase 4 build didn't actually follow the mockup
+
+**What went wrong:** the first pass at the Steward web app used emoji icons with no badge background, put "Approve" in the sidebar nav as a full page, and never built the Architecture view — none of which matches `Steward Web.html`. This wasn't caught by the earlier "screenshotted against the mockup for a visual sanity check" claim in the previous commit message — that check was too shallow (a glance, not a real comparison) to catch real structural differences.
+
+**What actually fixed it:** re-rendered the mockup in Playwright and extracted its real DOM (`page.evaluate(() => document.body.innerHTML)`), not just a screenshot — this recovered the literal SVG icon paths, the real nav items (Dashboard/Timeline/**Architecture**, not Approve), the exact `ApprovalModal` structure and copy, the real `DOMAINS` array behind the Architecture view, and the actual CSS custom property values (colors, fonts: Inter + Space Mono, not the IBM Plex assumed from the separate Architecture *artifact*, which turned out to be a different design system entirely). Rebuilt against that extracted source, not against memory of what the screenshot looked like.
+
+**Consequence — the actual lesson:** "screenshotted it and it looked right" is not verification when the reference is a specific design, the same way "the code compiles" was never verification for the MCP schema work earlier. Reading the mockup's real markup/source is required, not optional, when the ask is to follow a specific design — a visual approximation from a screenshot is a different, lower bar than the one that was actually set.
+
+---
+
 ## 2026-08-26 — Found and fixed test data silently polluting the real dev DB
 
 **Decision:** added `t.after()` cleanup to every integration test that writes to Postgres

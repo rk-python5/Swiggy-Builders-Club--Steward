@@ -9,8 +9,8 @@ export interface DaemonMeta {
   icon: string;
 }
 
-// Static metadata matching the Claude Design mockup's Dashboard cards -- the three
-// daemons built across Phases 1-3.
+// Static metadata matching the Claude Design mockup's Dashboard cards exactly, including
+// its icon keys (clock/layers/bell) -- the three daemons built across Phases 1-3.
 export const DAEMONS: DaemonMeta[] = [
   {
     key: "standing_plans",
@@ -18,7 +18,7 @@ export const DAEMONS: DaemonMeta[] = [
     tier: "A",
     description: "Books recurring free reservations unattended.",
     vertical: "Dineout",
-    icon: "🕐",
+    icon: "clock",
   },
   {
     key: "kitchen_entropy",
@@ -26,7 +26,7 @@ export const DAEMONS: DaemonMeta[] = [
     tier: "B",
     description: "Tracks pantry depletion, proposes a restock cart.",
     vertical: "Instamart",
-    icon: "📦",
+    icon: "layers",
   },
   {
     key: "dead_mans_switch",
@@ -34,14 +34,21 @@ export const DAEMONS: DaemonMeta[] = [
     tier: "B",
     description: "Orders to another address when activity goes quiet.",
     vertical: "Food",
-    icon: "🔔",
+    icon: "bell",
   },
 ];
+
+export interface PendingProposal {
+  id: number;
+  summary: string;
+  amountPaise: number | null;
+  payload: { toolName: string; args: Record<string, unknown> };
+}
 
 export interface DaemonStatus {
   meta: DaemonMeta;
   lastRun: { status: string; startedAt: Date; detail: string | null } | null;
-  pendingProposal: { id: number; summary: string; amountPaise: number | null } | null;
+  pendingProposal: PendingProposal | null;
 }
 
 export async function loadDaemonStatuses(): Promise<DaemonStatus[]> {
@@ -52,7 +59,7 @@ export async function loadDaemonStatuses(): Promise<DaemonStatus[]> {
       [meta.key],
     );
     const { rows: proposalRows } = await pool.query(
-      `SELECT id, summary, amount_paise FROM proposals
+      `SELECT id, summary, amount_paise, payload FROM proposals
        WHERE daemon = $1 AND status IN ('pending', 'snoozed') ORDER BY created_at DESC LIMIT 1`,
       [meta.key],
     );
@@ -62,7 +69,12 @@ export async function loadDaemonStatuses(): Promise<DaemonStatus[]> {
         ? { status: runRows[0].status, startedAt: new Date(runRows[0].started_at), detail: runRows[0].detail }
         : null,
       pendingProposal: proposalRows[0]
-        ? { id: proposalRows[0].id, summary: proposalRows[0].summary, amountPaise: proposalRows[0].amount_paise }
+        ? {
+            id: proposalRows[0].id,
+            summary: proposalRows[0].summary,
+            amountPaise: proposalRows[0].amount_paise,
+            payload: proposalRows[0].payload,
+          }
         : null,
     });
   }
