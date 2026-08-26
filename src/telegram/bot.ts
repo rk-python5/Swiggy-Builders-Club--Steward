@@ -83,6 +83,7 @@ async function finalizeCommitment(
     longitude,
   });
   pending.delete(chatId);
+  console.log(`[telegram] commitment ${commitment.id} created: ${restaurant.name}, ${DAY_NAMES[commitment.dayOfWeek]} ${commitment.timeOfDay}`);
   await sendMessage(
     chatId,
     `Standing Plan created: ${restaurant.name}, every ${DAY_NAMES[commitment.dayOfWeek]} at ${commitment.timeOfDay.slice(0, 5)} for ${commitment.partySize}. Standing Plans will book it automatically when a free slot matches.`,
